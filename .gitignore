@@ -1,0 +1,7 @@
+venv_murder/
+__pycache__/
+*.pyc
+*.pth
+backend/.env
+logs/
+game_data.db

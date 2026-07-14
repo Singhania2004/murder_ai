@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔍 AI Murder Mystery</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="app">
+        <!-- Header -->
+        <header>
+            <h1>🔍 AI Murder Mystery</h1>
+            <div id="game-status">
+                <span id="status-text">Ready</span>
+                <button id="start-btn" class="btn btn-primary">🎮 Start Game</button>
+                <button id="reset-btn" class="btn btn-secondary">🔄 New Game</button>
+            </div>
+        </header>
+
+        <!-- Main Game Area -->
+        <div id="game-container">
+            <!-- Left Panel: Chat -->
+            <div id="chat-panel">
+                <div id="chat-messages">
+                    <!-- How to Play will be inserted here by JS -->
+                </div>
+                <div id="chat-input-area">
+                    <select id="action-select">
+                        <option value="interrogate">🔍 Interrogate</option>
+                        <option value="analyze">🔬 Analyze Evidence</option>
+                        <option value="hint">💡 Get Hint</option>
+                        <option value="accuse">⚖️ Accuse</option>
+                    </select>
+                    <input type="text" id="chat-input" placeholder="Type your question or command..." />
+                    <button id="send-btn" class="btn btn-primary">Send</button>
+                </div>
+            </div>
+
+            <!-- Right Panel: Evidence Board -->
+            <div id="evidence-panel">
+                <div class="panel-section">
+                    <h3>📋 Case Details</h3>
+                    <div id="case-details">
+                        <p><strong>Case:</strong> <span id="case-title">Not started</span></p>
+                        <p><strong>Status:</strong> <span id="case-status">Waiting</span></p>
+                        <p><strong>Accusations:</strong> <span id="accusation-count">0/3</span></p>
+                    </div>
+                </div>
+
+                <div class="panel-section">
+                    <h3>👤 Suspects</h3>
+                    <div id="suspects-list">
+                        <p class="empty">No suspects yet</p>
+                    </div>
+                </div>
+
+                <div class="panel-section">
+                    <h3>🔎 Evidence</h3>
+                    <div id="evidence-list">
+                        <p class="empty">No evidence discovered</p>
+                    </div>
+                </div>
+
+                <div class="panel-section">
+                    <h3>📝 Notes</h3>
+                    <textarea id="notes" placeholder="Take notes here..."></textarea>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
