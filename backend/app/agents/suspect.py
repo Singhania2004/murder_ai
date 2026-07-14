@@ -49,14 +49,17 @@ YOUR ALIBI: {suspect.alibi}
 YOUR SECRETS: {', '.join(suspect.secrets)}
 
 INSTRUCTIONS:
-1. Respond ONLY as the character - NO internal thoughts, NO analysis, NO meta-commentary
-2. Speak naturally and in character
-3. If you are the KILLER: Lie subtly, deflect blame, hide your secrets
-4. If you are INNOCENT: Tell the truth but may hide embarrassing details
-5. React to evidence presented against you
-6. Use natural dialogue with contractions and emotions
+1. Respond ONLY as the character — NO internal thoughts, NO analysis, NO meta-commentary
+2. Speak naturally and in character with genuine emotion
+3. If you are the KILLER: Lie subtly, deflect blame, hide your secrets — show controlled nervousness or false confidence
+4. If you are INNOCENT: Tell the truth but react with appropriate emotion — confused, irritated, frightened
+5. React to evidence presented against you with a realistic emotional response
+6. Use natural dialogue with contractions and genuine emotion
 
-IMPORTANT: Your response should be ONLY what {suspect.name} would say. No thinking aloud, no "let me think" or "okay so" - just speak as the character."""
+FORMAT: ALWAYS begin your response with an expression tag in square brackets describing your physical/emotional state, then your spoken dialogue.
+Examples of expression tags: [shifting uncomfortably], [meeting your gaze steadily], [looking away briefly], [crossing arms], [visibly startled], [forcing a calm smile], [voice rising slightly], [pale, swallowing hard]
+
+IMPORTANT: Your FIRST word must be an opening bracket [ and your expression tag must close ] before any dialogue. Then speak as the character."""
         
         return prompt
     
@@ -85,31 +88,30 @@ IMPORTANT: Your response should be ONLY what {suspect.name} would say. No thinki
         return cleaned_response
     
     def _clean_response(self, response: str) -> str:
-        """Remove internal thoughts and meta-commentary from response."""
+        """Remove internal thoughts; preserve [expression] tag at start."""
         # Remove anything between <think> tags
         cleaned = re.sub(r'<think>.*?</think>', '', response, flags=re.DOTALL)
         
         # Remove the character's name prefix if it appears (e.g., "James Parker: ")
-        cleaned = re.sub(r'^' + re.escape(self.suspect.name) + r':\s*', '', cleaned, flags=re.IGNORECASE)
+        cleaned = re.sub(r'^' + re.escape(self.suspect.name) + r':\s*', '', cleaned, flags=re.IGNORECASE).strip()
         
-        # Remove common internal thought patterns
+        # Seek the first valid square-bracketed expression tag [emotion] (3 to 80 chars).
+        # Slicing from this match will strip any "thought" paragraphs printed before that tag.
+        match = re.search(r'\[[^\]]{3,80}\]', cleaned)
+        if match:
+            cleaned = cleaned[match.start():]
+        
+        # Remove common internal thought patterns but ONLY if they don't start with [
+        # (to avoid stripping expression tags)
         patterns = [
-            r'Okay, so.*?\n',
-            r'Let me think.*?\n',
-            r'I need to.*?\n',
-            r'First, I.*?\n',
-            r'Wait,.*?\n',
-            r'Hmm,.*?\n',
-            r'Since I.*?\n',
-            r'But I.*?\n',
-            r'Maybe I.*?\n',
-            r'I should.*?\n',
-            r'Also,.*?\n',
-            r'Alright,.*?\n',
-            r'Let me.*?\n',
-            r'I want to.*?\n',
-            r'I could.*?\n',
-            r'If I.*?\n',
+            r'^Okay, so [^\[\n][^\n]*\n',
+            r'^Let me think[^\n]*\n',
+            r'^I need to[^\n]*\n',
+            r'^First, I[^\n]*\n',
+            r'^Wait,[^\n]*\n',
+            r'^Hmm,[^\n]*\n',
+            r'^Alright,[^\n]*\n',
+            r'^Let me [^\[\n][^\n]*\n',
         ]
         
         for pattern in patterns:
@@ -121,9 +123,13 @@ IMPORTANT: Your response should be ONLY what {suspect.name} would say. No thinki
         # Strip whitespace
         cleaned = cleaned.strip()
         
-        # If cleaned is empty, return a default response
+        # If cleaned is empty, return a default expression + fallback response
         if not cleaned or len(cleaned) < 10:
-            return "I don't have anything to say about that."
+            return "[looking away] I don't have anything to say about that."
+        
+        # If somehow no expression tag, prepend a neutral one
+        if not cleaned.startswith('['):
+            cleaned = '[remains guarded] ' + cleaned
         
         return cleaned
     
@@ -179,12 +185,15 @@ You have been ACCUSED of murder!
 
 Accusation: {accusation}
 
-{self.suspect.name} (respond ONLY as the character):
+Respond with intense emotion. Begin with an expression tag in brackets then speak.
+Example: [shooting to their feet, face flushed] That is outrageous! I was nowhere near...
+
+{self.suspect.name}:
 """
         
         response = await self._call_llm(
             prompt=prompt,
-            temperature=0.7,
+            temperature=0.8,
             max_tokens=200
         )
         

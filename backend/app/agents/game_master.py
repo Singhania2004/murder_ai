@@ -66,30 +66,79 @@ Keep it immersive and mysterious."""
         return response.content
     
     async def get_hint(self, game_state: GameState) -> str:
-        """Give a subtle hint to help the player."""
+        """Give a context-aware, tiered hint to help the player progress."""
         
-        # Find what clues have been discovered
-        discovered = [c.description for c in game_state.discovered_clues if c.discovered]
+        discovered = [c for c in game_state.discovered_clues if c.discovered]
+        analyzed = [c for c in discovered if c.analyzed]
+        undiscovered = [c for c in game_state.discovered_clues if not c.discovered]
+        unanalyzed = [c for c in discovered if not c.analyzed]
+        interrogated = [s for s in game_state.suspects if s.interrogated]
         
-        prompt = f"""The detective is investigating this case and seems stuck.
+        # Tier 1: Nothing found yet
+        if not discovered:
+            return (
+                "The crime scene holds its secrets patiently. "
+                "You won't find answers standing here — search the area for physical evidence. "
+                "Start where the body was found."
+            )
+        
+        # Tier 2: Evidence found but none analyzed
+        if unanalyzed and not analyzed:
+            clue = unanalyzed[0]
+            return (
+                f"You've collected evidence but haven't examined it yet. "
+                f"The forensic lab can tell you far more than your eyes alone. "
+                f"Have the {'physical' if clue.type == 'physical' else clue.type} evidence analyzed before drawing conclusions."
+            )
+        
+        # Tier 3: Evidence analyzed but no interrogations done
+        if analyzed and not interrogated:
+            analyzed_clue = analyzed[0]
+            return (
+                f"The forensic report is in — you now know things the suspects don't know you know. "
+                f"Use that. Pick a suspect and start asking questions. "
+                f"The evidence doesn't lie, but people do."
+            )
+        
+        # Tier 4: Some interrogations, more clues undiscovered
+        if undiscovered and interrogated:
+            return (
+                "You've spoken to some of the suspects, but you haven't found all the evidence yet. "
+                "There may be clues still hidden at the scene. "
+                "Search again — investigators who stop too early miss the truth."
+            )
+        
+        # Tier 5: All clues found and analyzed, partial interrogations
+        not_interrogated = [s for s in game_state.suspects if not s.interrogated]
+        if not_interrogated and analyzed:
+            name = not_interrogated[0].name
+            return (
+                f"You haven't spoken to everyone yet. "
+                f"{name} has been waiting — and silent people in a murder investigation are rarely innocent of *something*. "
+                f"Push them."
+            )
+        
+        # Tier 6: All suspects interrogated — look for contradictions
+        killer = next((s for s in game_state.suspects if s.is_killer), None)
+        
+        prompt = f"""The detective has interrogated all suspects and found all the evidence. Help them identify a contradiction.
 
 CASE: {game_state.case_title}
-DISCOVERED CLUES: {', '.join(discovered) if discovered else 'None yet'}
-INTERROGATED SUSPECTS: {', '.join([s.name for s in game_state.suspects if s.interrogated])}
-TRUE KILLER: {game_state.true_killer_id}
+ANALYZED EVIDENCE: {', '.join([c.description for c in analyzed])}
+SUSPECTS: {', '.join([s.name for s in game_state.suspects])}
+TRUE KILLER: {killer.name if killer else 'Unknown'}
 
-Give a subtle, cryptic hint that:
-1. Doesn't reveal the killer directly
-2. Points to a contradiction or overlooked detail
-3. Encourages the detective to investigate further
-4. Is mysterious but helpful
+Give a SUBTLE cryptic hint (2 sentences max) that:
+1. Points to a specific contradiction or overlooked detail WITHOUT naming the killer
+2. Makes the detective re-examine something they might have dismissed
+3. Is mysterious but genuinely useful
 
-Keep it in character as the Game Master."""
+Do not name the killer directly."""
         
         response = await self._call_llm(
             prompt=prompt,
             temperature=0.7,
-            max_tokens=256
+            max_tokens=120
         )
         
         return response.content

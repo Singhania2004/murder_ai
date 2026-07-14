@@ -1,4 +1,4 @@
-"""Forensic Expert Agent - Provides specific, actionable analysis."""
+"""Forensic Expert Agent - Provides cold, factual forensic analysis only."""
 
 from typing import Dict, Any, Optional, List
 from app.agents.base import BaseAgent
@@ -7,7 +7,7 @@ from app.utils.logger import logger
 
 
 class ForensicExpert(BaseAgent):
-    """Agent that provides specific forensic analysis with concrete details."""
+    """Agent that provides cold, factual forensic analysis — no meta-advice."""
     
     def __init__(self):
         super().__init__(
@@ -15,16 +15,18 @@ class ForensicExpert(BaseAgent):
             role="Evidence Analyst",
             model_type="forensic"
         )
-        self.system_prompt = """You are a forensic expert providing SPECIFIC, ACTIONABLE analysis.
+        self.system_prompt = """You are a cold, precise forensic scientist reporting findings from a lab.
 
-RULES:
-1. Give CONCRETE details (size 9 shoe, blue cotton fabric, etc.)
-2. Suggest what the detective should ask suspects
-3. Be BRIEF - max 4 bullet points
-4. Don't repeat the evidence description
-5. Include specific measurements or details when possible
+STRICT RULES:
+1. Focus ONLY on forensic facts relevant to a criminal investigation (e.g. shoe sizes, shoe brands, fabric colors/materials, specific items purchased on receipts, timestamps on digital footage/receipts, fingerprints/chemical stains).
+2. Cut out useless filler measurements — do NOT report receipt paper dimensions (width/height), paper weight (gsm/grams), or chemical pulp composition of paper. These are completely irrelevant to solving a murder.
+3. Be BRIEF — maximum 4 bullet points.
+4. Each bullet gives ONE specific, investigation-relevant fact.
+5. Do NOT suggest questions to ask suspects or advise next steps.
+6. Do NOT say "ask suspects about X" or "you should investigate Y".
 
-Format as bullet points starting with •"""
+Format ONLY as bullet points starting with •
+Do NOT include any section headers or advisory text."""
         
         logger.info("Initialized Forensic Expert agent")
     
@@ -33,38 +35,33 @@ Format as bullet points starting with •"""
         clue: Clue,
         game_state: GameState
     ) -> Dict[str, Any]:
-        """Analyze a piece of evidence with specific details."""
+        """Analyze a piece of evidence — returns cold forensic facts only."""
         
-        suspects_info = self._get_interrogated_suspects_info(game_state)
-        
-        # Get context about the case
-        case_context = f"""
-CASE: {game_state.case_title}
+        case_context = f"""CASE: {game_state.case_title}
 VICTIM: {game_state.victim.get('name', 'Unknown')}
-MURDER METHOD: {getattr(game_state, 'method', 'Unknown')}
-"""
+CAUSE OF DEATH: {game_state.victim.get('cause_of_death', getattr(game_state, 'method', 'Unknown'))}"""
         
-        prompt = f"""Analyze this evidence with SPECIFIC details:
+        prompt = f"""Write a forensic lab report for this evidence item.
 
-EVIDENCE: {clue.description}
-TYPE: {clue.type}
+EVIDENCE ITEM: {clue.description}
+EVIDENCE TYPE: {clue.type}
 
 {case_context}
 
-INTERROGATED SUSPECTS:
-{suspects_info}
+Report ONLY the relevant forensic facts determined from this evidence:
+- If a footprint: size, estimated brand, tread design, and estimated stride.
+- If a receipt/document: purchase contents (e.g., gun cleaning kit), store name, date, timestamp, and trace markings (such as grease or finger smudges).
+- If a fabric/thread/fiber: color, material type, and tear/wear pattern.
+- If digital/CCTV: timestamp, subject's height/build description, and visible clothing items.
 
-Provide a SPECIFIC forensic analysis:
-1. What are the concrete details? (size, material, time, etc.)
-2. What questions should the detective ask suspects?
-3. What should the detective look for next?
-
-Be SPECIFIC and ACTIONABLE. Use numbers, sizes, materials when possible."""
+DO NOT output irrelevant details like paper size, paper weight, or wood pulp composition.
+DO NOT mention suspects or advise next steps. Report facts only.
+Keep it to 3-4 bullet points maximum."""
         
         response = await self._call_llm(
             prompt=prompt,
-            temperature=0.3,
-            max_tokens=180
+            temperature=0.2,
+            max_tokens=200
         )
         
         clue.analyzed = True
@@ -76,18 +73,6 @@ Be SPECIFIC and ACTIONABLE. Use numbers, sizes, materials when possible."""
             "analysis": response.content,
             "clue": clue
         }
-    
-    def _get_interrogated_suspects_info(self, game_state: GameState) -> str:
-        """Get formatted information only for interrogated suspects."""
-        info = []
-        interrogated = [s for s in game_state.suspects if s.interrogated]
-        
-        if not interrogated:
-            return "None interrogated yet"
-        
-        for suspect in interrogated:
-            info.append(f"- {suspect.name}: {suspect.alibi}")
-        return '\n'.join(info)
     
     async def process(
         self,

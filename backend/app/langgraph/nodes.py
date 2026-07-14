@@ -152,7 +152,7 @@ class NodeHandler:
             }
     
     async def discover_evidence_node(self, state: AgentState) -> Dict[str, Any]:
-        """Discover new evidence - vague and mysterious."""
+        """Discover new evidence - atmospheric and vague, never reveals clue specifics."""
         game_state = state["game_state"]
         search_area = state.get("user_input", "the crime scene")
         
@@ -162,21 +162,45 @@ class NodeHandler:
             if not undiscovered:
                 return {
                     "game_state": game_state,
-                    "response": "🔎 You've searched everywhere! No more evidence to find.",
+                    "response": "🔎 You've combed through every corner. There's nothing left to find here.",
                     "new_clues": [],
                     "next_node": "awaiting_input"
                 }
             
             new_clues = undiscovered[:1]
-            for clue in new_clues:
-                clue.discovered = True
+            clue = new_clues[0]
+            clue.discovered = True
             
-            # Create a vague, mysterious description
-            prompt = f"""Write a brief, mysterious description (2 sentences) of discovering this evidence:
+            # Determine clue type label for the vague prompt
+            type_label_map = {
+                "physical": "a physical object or mark",
+                "document": "a written or printed document",
+                "digital": "a digital or electronic record",
+                "testimony": "a trace left by someone",
+            }
+            vague_type = type_label_map.get(clue.type, "something unusual")
+            
+            # Generate a narrative that mentions the general item found without the forensic details
+            prompt = f"""Write a 1-2 sentence atmospheric discovery narrative for a detective searching {search_area}.
+            
+The clue details are: "{clue.description}"
 
-    EVIDENCE: {new_clues[0].description}
+RULES:
+1. Mention the general item that was found and where it was found (e.g. a receipt in the trash, a footprint in the dirt/garden, CCTV camera footage, a thread caught on a bush).
+2. Do NOT mention any specific forensic details from the clue description, such as:
+   - Specific measurements/sizes (e.g., shoe size, gsm)
+   - Specific brands or store names (e.g., Sprint-X, Dunlop)
+   - Specific item purchases (e.g., gun cleaning kit)
+   - Specific timestamps or dates (e.g., 10:10 PM, day before)
+   - Specific colors or fabric types (e.g., blue silk, black hoodie)
+3. Keep it brief (under 40 words), atmospheric, and mysterious.
 
-    Make it sound intriguing but don't reveal who it belongs to or what it means."""
+Example for "A size 11 footprint with a unique tread pattern was found near the crime scene":
+"A faint footprint is pressed into the soft earth near the crime scene, shadowed by the brush. It's worth examining further."
+
+Example for "A receipt from a hardware store was found in the trash, dated the day before, with a purchase of a gun cleaning kit":
+"Among the crumpled papers in the trash can, you discover a discarded store receipt. It might hold some crucial answers."
+"""
             
             response = await self.game_master._call_llm(
                 prompt=prompt,
