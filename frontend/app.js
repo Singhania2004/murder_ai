@@ -100,12 +100,12 @@ function handleWebSocketMessage(data) {
             if (gameComplete) {
                 const isCorrect = data.correct;
                 if (isCorrect) {
-                    const cleanResponse = extractVerdictInfo(data.response, true);
+                    const cleanResponse = extractVerdictInfo(data.response, true, data.game_state);
                     addMessage('verdict-win', cleanResponse);
                     statusText.textContent = '\u2705 Solved!';
                     statusText.style.color = '#4caf50';
                 } else {
-                    const cleanResponse = extractVerdictInfo(data.response, false);
+                    const cleanResponse = extractVerdictInfo(data.response, false, data.game_state);
                     addMessage('verdict-lose', cleanResponse);
                     statusText.textContent = '\u274c Case Closed';
                     statusText.style.color = '#ef5350';
@@ -156,46 +156,108 @@ function handleWebSocketMessage(data) {
     }
 }
 
-// Extract clean verdict info
-function extractVerdictInfo(response, isCorrect) {
+// Build a rich post-case debrief panel
+function extractVerdictInfo(response, isCorrect, gs) {
+    // --- parse LLM text for killer name, motive, details ---
     const lines = response.split('\n');
-    let killer = '';
-    let motive = '';
-    let details = [];
-    
+    let killerNameParsed = '';
+    let motiveParsed = '';
+    let detailLines = [];
     for (let line of lines) {
-        if (line.includes('KILLER:') || line.includes('killer was') || line.includes('TRUE KILLER:')) {
-            killer = line.replace(/[Kk]iller:|TRUE KILLER:/g, '').trim();
-        }
-        if (line.includes('MOTIVE:') || line.includes('motive was')) {
-            motive = line.replace(/[Mm]otive:/g, '').trim();
-        }
-        if (line.includes('red herring') || line.includes('Red Herring')) {
-            continue;
-        }
-        if (line.trim() && !line.includes('KILLER:') && !line.includes('MOTIVE:')) {
-            details.push(line.trim());
+        const l = line.trim();
+        if (!l) continue;
+        if (/^(true\s+)?killer:/i.test(l)) {
+            killerNameParsed = l.replace(/^(true\s+)?killer:\s*/i, '').trim();
+        } else if (/^motive:/i.test(l)) {
+            motiveParsed = l.replace(/^motive:\s*/i, '').trim();
+        } else if (!/^verdict:/i.test(l) && !/^details:/i.test(l)) {
+            // Capture DETAILS line content
+            const detailMatch = l.match(/^details?:\s*(.+)/i);
+            if (detailMatch) detailLines.push(detailMatch[1]);
+            else if (l.length > 10) detailLines.push(l);
         }
     }
-    
-    if (!killer && !motive) {
-        const sentences = response.split(/[.!?]/);
-        const firstFew = sentences.slice(0, 5).join('. ');
-        return `
-            <div class="verdict-title">${isCorrect ? '🎉 CASE SOLVED!' : '💀 CASE CLOSED'}</div>
-            <div class="verdict-subtitle">${isCorrect ? 'You caught the killer!' : 'The killer will walk free...'}</div>
-            <div class="verdict-details">${firstFew}...</div>
-        `;
+
+    // --- build suspect debrief rows from game state ---
+    let suspectRows = '';
+    let clueRows = '';
+
+    if (gs && gs.suspects && gs.suspects.length > 0) {
+        const killer = gs.suspects.find(s => s.is_killer);
+        const innocents = gs.suspects.filter(s => !s.is_killer);
+
+        // True killer row — prominent
+        if (killer) {
+            const killerSecrets = (killer.secrets || []).join('; ') || 'Hidden motive';
+            suspectRows += `
+                <div class="debrief-suspect killer-row">
+                    <div class="debrief-suspect-header">
+                        <span class="debrief-badge killer">🔴 THE KILLER</span>
+                        <strong>${killer.name}</strong>
+                        <span class="debrief-role">${killer.role}</span>
+                    </div>
+                    <div class="debrief-suspect-body">
+                        <p><span class="debrief-label">Motive:</span> ${gs.motive || motiveParsed || 'Unknown'}</p>
+                        <p><span class="debrief-label">Alibi (cover story):</span> ${killer.alibi}</p>
+                        <p><span class="debrief-label">Their secret:</span> ${killerSecrets}</p>
+                    </div>
+                </div>`;
+        }
+
+        // Innocent suspects — collapsed detail
+        for (const s of innocents) {
+            const secrets = (s.secrets || []).join('; ') || 'No hidden motive';
+            suspectRows += `
+                <div class="debrief-suspect innocent-row">
+                    <div class="debrief-suspect-header">
+                        <span class="debrief-badge innocent">✅ Innocent</span>
+                        <strong>${s.name}</strong>
+                        <span class="debrief-role">${s.role}</span>
+                    </div>
+                    <div class="debrief-suspect-body">
+                        <p><span class="debrief-label">Why they seemed suspicious:</span> ${secrets}</p>
+                        <p><span class="debrief-label">Alibi:</span> ${s.alibi}</p>
+                    </div>
+                </div>`;
+        }
+
+        // Clues breakdown
+        const discovered = (gs.discovered_clues || []).filter(c => c.discovered);
+        if (discovered.length > 0) {
+            for (const c of discovered) {
+                const icon = c.is_red_herring ? '🎭' : '🔑';
+                const label = c.is_red_herring ? 'Red Herring' : 'Real Clue';
+                const cls = c.is_red_herring ? 'clue-herring' : 'clue-real';
+                clueRows += `
+                    <div class="debrief-clue ${cls}">
+                        <span class="debrief-clue-icon">${icon}</span>
+                        <div>
+                            <strong>${c.name || ''}</strong>
+                            ${c.name ? '<br>' : ''}
+                            <span class="debrief-clue-desc">${c.description}</span>
+                            <span class="debrief-clue-tag">${label}</span>
+                        </div>
+                    </div>`;
+            }
+        }
     }
-    
+
+    const narrativeSummary = detailLines.slice(0, 3).join(' ');
+
     return `
         <div class="verdict-title">${isCorrect ? '🎉 CASE SOLVED!' : '💀 CASE CLOSED'}</div>
-        <div class="verdict-subtitle">${isCorrect ? 'You caught the killer!' : 'The killer will walk free...'}</div>
-        <div class="verdict-details">
-            <p><strong>🔴 Killer:</strong> ${killer || 'Unknown'}</p>
-            <p><strong>📖 Motive:</strong> ${motive || 'Unknown'}</p>
-            ${details.length > 0 ? `<p><strong>📌 Details:</strong> ${details.slice(0, 3).join(' ')}</p>` : ''}
-        </div>
+        <div class="verdict-subtitle">${isCorrect ? 'You caught the killer!' : 'The killer walked free... Here is what really happened.'}</div>
+        ${narrativeSummary ? `<div class="verdict-narrative">${narrativeSummary}</div>` : ''}
+        ${suspectRows ? `
+        <div class="debrief-section">
+            <div class="debrief-section-title">👥 The Full Picture</div>
+            <div class="debrief-suspects">${suspectRows}</div>
+        </div>` : ''}
+        ${clueRows ? `
+        <div class="debrief-section">
+            <div class="debrief-section-title">🔍 Evidence Breakdown</div>
+            <div class="debrief-clues">${clueRows}</div>
+        </div>` : ''}
     `;
 }
 
