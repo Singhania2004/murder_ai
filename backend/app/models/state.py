@@ -32,6 +32,7 @@ class Witness(BaseModel):
 class Clue(BaseModel):
     """Clue data model."""
     id: str
+    name: str = ""          # Short display name shown in evidence panel before analysis
     description: str
     type: str = "physical"  # More flexible, default to physical
     is_red_herring: bool = False

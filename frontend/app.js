@@ -124,8 +124,11 @@ function handleWebSocketMessage(data) {
             // Show ONLY the atmospheric narrative, never the clue description
             addMessage('system', data.response);
             if (data.new_clues && data.new_clues.length > 0) {
-                // Just notify that something was logged to evidence — no specifics
-                addMessage('system', '🔒 Something has been logged to your evidence board. Analyze it to learn more.');
+                // Show clue names so players know what was logged
+                const clueNames = data.new_clues
+                    .map(c => c.name || c.description?.split(' ').slice(0, 4).join(' ') || 'Unknown evidence')
+                    .join(', ');
+                addMessage('system', `🔒 New evidence logged: <strong>${clueNames}</strong> — click it in the evidence panel and analyze to reveal details.`);
             }
             break;
 
@@ -428,10 +431,9 @@ function updateUI() {
                 // After analysis: show full description
                 displayText = `<div class="evidence-desc">${c.description}</div>`;
             } else {
-                // Before analysis: show only type category
-                const typeLabels = { physical: 'Physical evidence', document: 'Document', digital: 'Digital record', testimony: 'Testimony' };
-                const label = typeLabels[c.type] || 'Unknown evidence';
-                displayText = `<div class="evidence-desc locked">${typeIcon} ${label} &mdash; <em>analyze to reveal details</em></div>`;
+                // Before analysis: show clue name (or derived fallback) + type icon
+                const displayName = c.name || c.description?.split(' ').slice(0, 4).join(' ') || 'Unknown Evidence';
+                displayText = `<div class="evidence-desc locked"><strong>${typeIcon} ${displayName}</strong><br><em style="font-size:11px;color:#888;">— analyze to reveal details</em></div>`;
             }
             
             return `

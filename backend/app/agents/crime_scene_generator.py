@@ -132,16 +132,19 @@ Make the mystery challenging but solvable through logical deduction."""
             ],
             "clues": [
                 {{
+                    "name": "Short 2-4 word label for evidence panel (e.g. 'Size 9 Footprint', 'Black Wool Thread', 'Hardware Receipt')",
                     "description": "A specific physical/digital/document clue with detail (e.g., 'A size 9 footprint', 'A blue silk thread', 'A receipt from XYZ store')",
                     "type": "physical/document/digital"
                 }},
                 {{
+                    "name": "Short 2-4 word label for evidence panel",
                     "description": "Another different type of clue with specific detail",
                     "type": "physical/document/digital"
                 }}
             ],
             "red_herrings": [
                 {{
+                    "name": "Short 2-4 word label for evidence panel (e.g. 'Blue Silk Fragment', 'Torn Letter')",
                     "description": "A misleading clue with specific details that point to an innocent suspect",
                     "type": "physical/document/digital"
                 }}
@@ -175,6 +178,14 @@ Make the mystery challenging but solvable through logical deduction."""
             return json.loads(json_match.group())
         else:
             return json.loads(response)
+    
+    def _derive_clue_name(self, description: str) -> str:
+        """Derive a short 2-4 word display name from a clue description as fallback."""
+        # Strip leading article ("A ", "An ", "The ")
+        stripped = re.sub(r'^(a|an|the)\s+', '', description, flags=re.IGNORECASE).strip()
+        # Take first 4 words, title-case them
+        words = stripped.split()[:4]
+        return ' '.join(w.capitalize() for w in words)
     
     def _get_fallback_case(self, method: str = "poisoning") -> Dict[str, Any]:
         """Return a fallback case with varied clue types."""
@@ -246,14 +257,14 @@ Make the mystery challenging but solvable through logical deduction."""
                 {"time": "10:15 PM", "event": "Police arrive"}
             ],
             "clues": [
-                {"description": "A size 10 footprint found in the garden near the study window", "type": "physical"},
-                {"description": "A black wool thread caught on a bush near the garden path", "type": "physical"},
-                {"description": "A receipt from a chemical supply store found in the trash dated the day before", "type": "document"}
+                {"name": "Size 10 Footprint", "description": "A size 10 footprint found in the garden near the study window", "type": "physical"},
+                {"name": "Black Wool Thread", "description": "A black wool thread caught on a bush near the garden path", "type": "physical"},
+                {"name": "Chemical Supply Receipt", "description": "A receipt from a chemical supply store found in the trash dated the day before", "type": "document"}
             ],
             "red_herrings": [
-                {"description": "A torn piece of blue silk fabric found near the body", "type": "physical"},
-                {"description": "A note in the victim's handwriting about cutting Emily from the will", "type": "document"},
-                {"description": "A glass with red lipstick marks found in the study", "type": "physical"}
+                {"name": "Blue Silk Fragment", "description": "A torn piece of blue silk fabric found near the body", "type": "physical"},
+                {"name": "Inheritance Note", "description": "A note in the victim's handwriting about cutting Emily from the will", "type": "document"},
+                {"name": "Lipstick Glass", "description": "A glass with red lipstick marks found in the study", "type": "physical"}
             ]
         }
     
@@ -294,6 +305,7 @@ Make the mystery challenging but solvable through logical deduction."""
         for clue_data in case_data.get("clues", []):
             clues.append(Clue(
                 id=f"c{len(clues)+1}",
+                name=clue_data.get("name", "") or self._derive_clue_name(clue_data["description"]),
                 description=clue_data["description"],
                 type=clue_data.get("type", "physical"),
                 is_red_herring=False,
@@ -304,6 +316,7 @@ Make the mystery challenging but solvable through logical deduction."""
         for herring_data in case_data.get("red_herrings", []):
             clues.append(Clue(
                 id=f"c{len(clues)+1}",
+                name=herring_data.get("name", "") or self._derive_clue_name(herring_data["description"]),
                 description=herring_data["description"],
                 type=herring_data.get("type", "physical"),
                 is_red_herring=True,

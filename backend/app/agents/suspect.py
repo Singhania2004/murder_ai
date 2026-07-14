@@ -36,30 +36,30 @@ class SuspectAgent(BaseAgent):
         """Build the system prompt for this suspect."""
         suspect = self.suspect
         
-        killer_status = "You are the MURDERER! You MUST NOT reveal this directly." if suspect.is_killer else "You are INNOCENT."
+        killer_status = (
+            "You ARE the murderer. Do NOT confess directly — deflect, lie subtly, and project false confidence."
+            if suspect.is_killer
+            else "You are INNOCENT. React with genuine emotion — confused, irritated, or frightened when accused."
+        )
         
-        prompt = f"""You are {suspect.name}, the {suspect.role} in a murder investigation.
+        prompt = f"""You are {suspect.name}, the {suspect.role} in a murder investigation being interrogated by a detective.
 
 PERSONALITY: {suspect.personality}
 BACKGROUND: {suspect.backstory}
-
-{killer_status}
-
 YOUR ALIBI: {suspect.alibi}
 YOUR SECRETS: {', '.join(suspect.secrets)}
 
-INSTRUCTIONS:
-1. Respond ONLY as the character — NO internal thoughts, NO analysis, NO meta-commentary
-2. Speak naturally and in character with genuine emotion
-3. If you are the KILLER: Lie subtly, deflect blame, hide your secrets — show controlled nervousness or false confidence
-4. If you are INNOCENT: Tell the truth but react with appropriate emotion — confused, irritated, frightened
-5. React to evidence presented against you with a realistic emotional response
-6. Use natural dialogue with contractions and genuine emotion
+STATUS: {killer_status}
 
-FORMAT: ALWAYS begin your response with an expression tag in square brackets describing your physical/emotional state, then your spoken dialogue.
-Examples of expression tags: [shifting uncomfortably], [meeting your gaze steadily], [looking away briefly], [crossing arms], [visibly startled], [forcing a calm smile], [voice rising slightly], [pale, swallowing hard]
+STRICT OUTPUT RULES — FOLLOW EXACTLY:
+- Output ONLY {suspect.name}'s spoken response. Nothing else.
+- NO reasoning, NO planning, NO analysis, NO "let me think", NO meta-commentary.
+- Start IMMEDIATELY with a physical/emotional expression in [square brackets], then speak.
+- Keep it to 2-4 sentences max.
+- Use natural speech with contractions (I'm, I've, wasn't, etc.)
 
-IMPORTANT: Your FIRST word must be an opening bracket [ and your expression tag must close ] before any dialogue. Then speak as the character."""
+FORMAT EXAMPLE:
+[crossing arms defensively] I already told the police everything. I was at the charity gala the entire evening — dozens of people saw me there."""
         
         return prompt
     
@@ -71,17 +71,33 @@ IMPORTANT: Your FIRST word must be an opening bracket [ and your expression tag 
         """Interrogate the suspect with a question."""
         self.interrogation_count += 1
         
-        prompt = self._build_interrogation_prompt(question, evidence_presented)
-        self.add_to_history("user", question)
+        # Build the user message with only the new question + any evidence
+        user_content = f"Detective: {question}"
+        if evidence_presented:
+            evidence_str = "\n".join(f"- {e}" for e in evidence_presented)
+            user_content = f"[Evidence shown to you: {evidence_str}]\nDetective: {question}"
         
-        response = await self._call_llm(
-            prompt=prompt,
-            temperature=0.7,
-            max_tokens=300
+        # Build messages: system + last 3 prior conversation pairs + current question
+        max_history_pairs = 3
+        prior_history = self.conversation_history  # history before this question
+        recent = prior_history[-(max_history_pairs * 2):]
+        
+        messages = (
+            [{"role": "system", "content": self.system_prompt}]
+            + recent
+            + [{"role": "user", "content": user_content}]
+        )
+        
+        response = await self._call_chat(
+            messages=messages,
+            temperature=0.75,
+            max_tokens=180
         )
         
         cleaned_response = self._clean_response(response.content)
         
+        # Now store in history
+        self.add_to_history("user", user_content)
         self.add_to_history("assistant", cleaned_response)
         self.suspect.statements.append(cleaned_response)
         
@@ -89,112 +105,69 @@ IMPORTANT: Your FIRST word must be an opening bracket [ and your expression tag 
     
     def _clean_response(self, response: str) -> str:
         """Remove internal thoughts; preserve [expression] tag at start."""
-        # Remove anything between <think> tags
+        # Remove anything between <think> tags (safety net for thinking models)
         cleaned = re.sub(r'<think>.*?</think>', '', response, flags=re.DOTALL)
         
         # Remove the character's name prefix if it appears (e.g., "James Parker: ")
-        cleaned = re.sub(r'^' + re.escape(self.suspect.name) + r':\s*', '', cleaned, flags=re.IGNORECASE).strip()
+        cleaned = re.sub(
+            r'^' + re.escape(self.suspect.name) + r':\s*',
+            '', cleaned, flags=re.IGNORECASE
+        ).strip()
         
-        # Seek the first valid square-bracketed expression tag [emotion] (3 to 80 chars).
-        # Slicing from this match will strip any "thought" paragraphs printed before that tag.
+        # Find the first valid [expression] tag (3–80 chars) and slice from there
+        # This strips any leaked reasoning paragraphs before the tag
         match = re.search(r'\[[^\]]{3,80}\]', cleaned)
         if match:
             cleaned = cleaned[match.start():]
         
-        # Remove common internal thought patterns but ONLY if they don't start with [
-        # (to avoid stripping expression tags)
-        patterns = [
-            r'^Okay, so [^\[\n][^\n]*\n',
-            r'^Let me think[^\n]*\n',
-            r'^I need to[^\n]*\n',
-            r'^First, I[^\n]*\n',
-            r'^Wait,[^\n]*\n',
-            r'^Hmm,[^\n]*\n',
-            r'^Alright,[^\n]*\n',
-            r'^Let me [^\[\n][^\n]*\n',
+        # Strip common leaked reasoning patterns that appear before [expression]
+        leaked_patterns = [
+            r'^Okay[,.]?\s+[^\[][^\n]*\n+',
+            r'^Let me think[^\n]*\n+',
+            r'^I need to[^\n]*\n+',
+            r'^First[,.]?\s+I[^\n]*\n+',
+            r'^Wait[,.]?\s[^\n]*\n+',
+            r'^Hmm[,.]?\s[^\n]*\n+',
+            r'^Alright[,.]?\s[^\n]*\n+',
+            r'^So[,.]?\s[^\n]*\n+',
+            r'^The detective[^\n]*\n+',
+            r'^Since (she|he|I)[^\[^\n]*\n+',
         ]
         
-        for pattern in patterns:
+        for pattern in leaked_patterns:
             cleaned = re.sub(pattern, '', cleaned, flags=re.IGNORECASE | re.MULTILINE)
         
-        # Remove multiple newlines
+        # Collapse multiple blank lines
         cleaned = re.sub(r'\n\s*\n+', '\n\n', cleaned)
-        
-        # Strip whitespace
         cleaned = cleaned.strip()
         
-        # If cleaned is empty, return a default expression + fallback response
+        # Fallback if we got nothing useful
         if not cleaned or len(cleaned) < 10:
             return "[looking away] I don't have anything to say about that."
         
-        # If somehow no expression tag, prepend a neutral one
+        # If no expression tag, prepend a neutral one
         if not cleaned.startswith('['):
             cleaned = '[remains guarded] ' + cleaned
         
         return cleaned
     
-    def _build_interrogation_prompt(
-        self,
-        question: str,
-        evidence_presented: Optional[List[str]] = None
-    ) -> str:
-        """Build the interrogation prompt."""
-        case_context = f"""
-CASE: {self.game_state.case_title}
-VICTIM: {self.game_state.victim.get('name', 'Unknown')}
-"""
-        
-        discovered_info = ""
-        if self.game_state.discovered_clues:
-            discovered_info = "\nEVIDENCE THAT HAS BEEN DISCOVERED:\n"
-            for clue in self.game_state.discovered_clues:
-                if clue.discovered:
-                    discovered_info += f"- {clue.description}\n"
-        
-        evidence_context = ""
-        if evidence_presented:
-            evidence_context = "\nEVIDENCE PRESENTED TO YOU:\n"
-            for evidence in evidence_presented:
-                evidence_context += f"- {evidence}\n"
-        
-        recent_history = ""
-        if self.conversation_history:
-            recent_history = "\nRECENT CONVERSATION:\n"
-            for msg in self.conversation_history[-4:]:
-                role = "Detective" if msg["role"] == "user" else self.suspect.name
-                recent_history += f"{role}: {msg['content']}\n"
-        
-        prompt = f"""{self.system_prompt}
-
-{case_context}
-{discovered_info}
-{evidence_context}
-{recent_history}
-
-Detective: {question}
-
-{self.suspect.name} (respond ONLY as the character, no internal thoughts):
-"""
-        
-        return prompt
-    
     async def react_to_accusation(self, accusation: str) -> str:
         """React when accused of the murder."""
-        prompt = f"""
-You have been ACCUSED of murder!
-
-Accusation: {accusation}
-
-Respond with intense emotion. Begin with an expression tag in brackets then speak.
-Example: [shooting to their feet, face flushed] That is outrageous! I was nowhere near...
-
-{self.suspect.name}:
-"""
+        messages = [
+            {"role": "system", "content": self.system_prompt},
+            {
+                "role": "user",
+                "content": (
+                    f"Detective: I'm accusing you of the murder! {accusation}\n"
+                    f"React with intense emotion. Begin with [expression tag] then speak."
+                )
+            }
+        ]
         
-        response = await self._call_llm(
-            prompt=prompt,
+        response = await self._call_chat(
+            messages=messages,
             temperature=0.8,
-            max_tokens=200
+            max_tokens=180
         )
         
         return self._clean_response(response.content)
