@@ -647,3 +647,75 @@ header h1 {
     background: #1a2a3a;
     color: #64b5f6;
 }
+
+/* ============================
+   SUSPECT RESPONSE MESSAGES
+   ============================ */
+
+.message.suspect-response {
+    background: #1c1528;
+    align-self: flex-start;
+    border-left: 3px solid #e94560;
+    max-width: 88%;
+}
+
+.suspect-name {
+    font-weight: 700;
+    color: #e94560;
+    font-size: 14px;
+}
+
+.suspect-colon {
+    color: #888;
+}
+
+.suspect-expression {
+    font-style: italic;
+    color: #c5a028;
+    font-size: 12.5px;
+    background: rgba(197, 160, 40, 0.08);
+    padding: 1px 5px;
+    border-radius: 3px;
+    letter-spacing: 0.2px;
+}
+
+.suspect-dialogue {
+    color: #e0d8d8;
+    font-size: 14px;
+    line-height: 1.55;
+}
+
+/* ============================
+   LOCKED EVIDENCE (unanalyzed)
+   ============================ */
+
+.evidence-desc {
+    font-size: 13px;
+    color: #ccc;
+    line-height: 1.4;
+    margin-bottom: 4px;
+}
+
+.evidence-desc.locked {
+    color: #666;
+    font-size: 12.5px;
+}
+
+.evidence-desc.locked em {
+    color: #4a4a6a;
+    font-style: italic;
+}
+
+.evidence-item:not(.analyzed) .evidence-desc.locked {
+    background: rgba(42, 42, 74, 0.3);
+    padding: 4px 6px;
+    border-radius: 4px;
+    border: 1px dashed #2a2a4a;
+}
+
+.type-badges {
+    display: flex;
+    gap: 6px;
+    margin-top: 5px;
+    flex-wrap: wrap;
+}

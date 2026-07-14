@@ -102,14 +102,17 @@ function handleWebSocketMessage(data) {
                 if (isCorrect) {
                     const cleanResponse = extractVerdictInfo(data.response, true);
                     addMessage('verdict-win', cleanResponse);
-                    statusText.textContent = '✅ Solved!';
+                    statusText.textContent = '\u2705 Solved!';
                     statusText.style.color = '#4caf50';
                 } else {
                     const cleanResponse = extractVerdictInfo(data.response, false);
                     addMessage('verdict-lose', cleanResponse);
-                    statusText.textContent = '❌ Case Closed';
+                    statusText.textContent = '\u274c Case Closed';
                     statusText.style.color = '#ef5350';
                 }
+            } else if (data.action === 'interrogate') {
+                // Suspect response — render with styled expression tag
+                addSuspectMessage(data.response);
             } else {
                 addMessage('system', data.response);
             }
@@ -118,10 +121,11 @@ function handleWebSocketMessage(data) {
         case 'discover_result':
             gameState = data.game_state;
             updateUI();
+            // Show ONLY the atmospheric narrative, never the clue description
             addMessage('system', data.response);
             if (data.new_clues && data.new_clues.length > 0) {
-                const clueNames = data.new_clues.map(c => c.description).join(', ');
-                addMessage('system', `🔎 New evidence discovered: ${clueNames}`);
+                // Just notify that something was logged to evidence — no specifics
+                addMessage('system', '🔒 Something has been logged to your evidence board. Analyze it to learn more.');
             }
             break;
 
@@ -302,6 +306,46 @@ function getClueDescription(id) {
     return clue ? clue.description : 'Unknown';
 }
 
+// Add a suspect message with styled [expression] tag
+function addSuspectMessage(content) {
+    const messageDiv = document.createElement('div');
+    messageDiv.className = 'message suspect-response';
+    
+    const contentDiv = document.createElement('div');
+    contentDiv.className = 'content';
+    
+    // Parse [expression] tag at the start
+    // Pattern: **Name**: [expression] dialogue
+    // or just: [expression] dialogue
+    const expressionRegex = /^(\*\*[^*]+\*\*:\s*)?(\[[^\]]+\])\s*/;
+    const match = content.match(expressionRegex);
+    
+    if (match) {
+        const namePrefix = match[1] || '';
+        const expression = match[2];
+        const dialogue = content.slice(match[0].length);
+        
+        // Build the name part (bold)
+        let html = '';
+        if (namePrefix) {
+            const nameText = namePrefix.replace(/\*\*/g, '').replace(/:\s*$/, '');
+            html += `<span class="suspect-name">${nameText}</span><span class="suspect-colon">: </span>`;
+        }
+        html += `<em class="suspect-expression">${expression}</em> `;
+        html += `<span class="suspect-dialogue">${dialogue.replace(/\n/g, '<br>')}</span>`;
+        contentDiv.innerHTML = html;
+    } else {
+        // Fallback: render the **Name**: bold, rest as dialogue
+        contentDiv.innerHTML = content
+            .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+            .replace(/\n/g, '<br>');
+    }
+    
+    messageDiv.appendChild(contentDiv);
+    chatMessages.appendChild(messageDiv);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
 // Add message to chat
 function addMessage(type, content) {
     const messageDiv = document.createElement('div');
@@ -313,7 +357,9 @@ function addMessage(type, content) {
     if (type === 'verdict-win' || type === 'verdict-lose') {
         contentDiv.innerHTML = content;
     } else {
-        contentDiv.innerHTML = content.replace(/\n/g, '<br>');
+        contentDiv.innerHTML = content
+            .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+            .replace(/\n/g, '<br>');
     }
     
     messageDiv.appendChild(contentDiv);
@@ -367,17 +413,32 @@ function updateUI() {
             let statusBadges = '';
             
             if (c.analyzed) {
-                statusBadges += `<span class="status-badge analyzed">🔬 Analyzed</span>`;
+                statusBadges += `<span class="status-badge analyzed">\uD83D\uDD2C Analyzed</span>`;
             }
             if (c.discovered) {
-                statusBadges += `<span class="status-badge discovered">🔍 Discovered</span>`;
+                statusBadges += `<span class="status-badge discovered">\uD83D\uDD0D Discovered</span>`;
+            }
+            
+            // Hide description until analyzed
+            const typeIcons = { physical: '\uD83D\uDC64', document: '\uD83D\uDCCB', digital: '\uD83D\uDCF1', testimony: '\uD83D\uDDE3\uFE0F' };
+            const typeIcon = typeIcons[c.type] || '\uD83D\uDD0D';
+            
+            let displayText;
+            if (c.analyzed) {
+                // After analysis: show full description
+                displayText = `<div class="evidence-desc">${c.description}</div>`;
+            } else {
+                // Before analysis: show only type category
+                const typeLabels = { physical: 'Physical evidence', document: 'Document', digital: 'Digital record', testimony: 'Testimony' };
+                const label = typeLabels[c.type] || 'Unknown evidence';
+                displayText = `<div class="evidence-desc locked">${typeIcon} ${label} &mdash; <em>analyze to reveal details</em></div>`;
             }
             
             return `
                 <div class="evidence-item ${c.discovered ? 'discovered' : ''} ${c.analyzed ? 'analyzed' : ''} ${isSelected ? 'selected' : ''}"
                      data-id="${c.id}" onclick="selectClue('${c.id}')">
-                    <div>${c.description} ${statusBadges}</div>
-                    <div class="type">${c.type}</div>
+                    ${displayText}
+                    <div class="type-badges">${statusBadges}</div>
                 </div>
             `;
         }).join('');
