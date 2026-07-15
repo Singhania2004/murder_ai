@@ -1,9 +1,7 @@
 """API routes for the game."""
 
-from fastapi import APIRouter, HTTPException, Depends
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, HTTPException
 from typing import Optional
-from app.models.base import get_db
 from app.langgraph.graph import GameGraph
 from app.utils.logger import logger
 from app.utils.serializers import serialize_game_state
@@ -19,7 +17,7 @@ async def health_check():
 
 
 @router.post("/game/start")
-async def start_game(db: Session = Depends(get_db)):
+async def start_game():
     """Start a new game."""
     try:
         result = await game_graph.start_game()
@@ -45,8 +43,7 @@ async def process_action(
     suspect_id: Optional[str] = None,
     clue_id: Optional[str] = None,
     evidence: Optional[list] = None,
-    motive: Optional[str] = None,
-    db: Session = Depends(get_db)
+    motive: Optional[str] = None
 ):
     """Process a game action."""
     try:
