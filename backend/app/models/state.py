@@ -25,16 +25,18 @@ class Witness(BaseModel):
     id: str
     name: str
     statement: str
-    credibility: float = 0.7  # 0-1, how reliable the witness is
+    credibility: float = 0.7
     additional_info: Optional[str] = None
+    connected_to: Optional[str] = None
+    connection_type: Optional[str] = None
 
 
 class Clue(BaseModel):
     """Clue data model."""
     id: str
-    name: str = ""          # Short display name shown in evidence panel before analysis
+    name: str = ""
     description: str
-    type: str = "physical"  # More flexible, default to physical
+    type: str = "physical"
     is_red_herring: bool = False
     discovered: bool = False
     analyzed: bool = False
@@ -43,10 +45,8 @@ class Clue(BaseModel):
     @field_validator('type', mode='before')
     @classmethod
     def validate_type(cls, v):
-        """Validate and normalize clue type."""
         valid_types = ['physical', 'testimony', 'timeline', 'document', 'hearsay', 'circumstantial', 'witness']
         if v not in valid_types:
-            # Map to closest valid type
             if v in ['hearsay', 'witness']:
                 return 'testimony'
             elif v in ['document', 'letter', 'note']:
@@ -54,7 +54,7 @@ class Clue(BaseModel):
             elif v in ['timeline', 'event', 'time']:
                 return 'timeline'
             else:
-                return 'physical'  # Default fallback
+                return 'physical'
         return v
 
 
@@ -74,7 +74,9 @@ class GameState(BaseModel):
     # Case data
     case_title: str = ""
     case_description: str = ""
-    theme: str = ""  # Add this line
+    theme: str = ""
+    case_date: str = ""      # ADD THIS
+    murder_time: str = ""    # ADD THIS
     victim: Dict[str, Any] = {}
     
     # Characters
@@ -97,25 +99,21 @@ class GameState(BaseModel):
     correct_accusation: bool = False
     
     def get_suspect(self, suspect_id: str) -> Optional[Suspect]:
-        """Get a suspect by ID."""
         for suspect in self.suspects:
             if suspect.id == suspect_id:
                 return suspect
         return None
     
     def get_clue(self, clue_id: str) -> Optional[Clue]:
-        """Get a clue by ID."""
         for clue in self.discovered_clues:
             if clue.id == clue_id:
                 return clue
         return None
     
     def add_clue(self, clue: Clue):
-        """Add a discovered clue."""
         self.discovered_clues.append(clue)
     
     def mark_suspect_interrogated(self, suspect_id: str):
-        """Mark a suspect as interrogated."""
         if suspect_id not in self.interrogated_suspect_ids:
             self.interrogated_suspect_ids.append(suspect_id)
         
@@ -124,10 +122,8 @@ class GameState(BaseModel):
             suspect.interrogated = True
     
     def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary for storage."""
         return self.model_dump()
     
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "GameState":
-        """Create from dictionary."""
         return cls(**data)

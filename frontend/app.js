@@ -15,8 +15,6 @@ const startBtn = document.getElementById('start-btn');
 const resetBtn = document.getElementById('reset-btn');
 const statusText = document.getElementById('status-text');
 const caseTitle = document.getElementById('case-title');
-const caseStatus = document.getElementById('case-status');
-const accusationCount = document.getElementById('accusation-count');
 const suspectsList = document.getElementById('suspects-list');
 const evidenceList = document.getElementById('evidence-list');
 const notes = document.getElementById('notes');
@@ -436,16 +434,12 @@ function addMessage(type, content) {
 function updateUI() {
     if (!gameState) {
         caseTitle.textContent = 'Not started';
-        caseStatus.textContent = 'Waiting';
-        accusationCount.textContent = '0/3';
         suspectsList.innerHTML = '<p class="empty">No suspects yet</p>';
         evidenceList.innerHTML = '<p class="empty">No evidence discovered</p>';
         return;
     }
 
     caseTitle.textContent = gameState.case_title || 'Untitled';
-    caseStatus.textContent = gameState.phase || 'Investigation';
-    accusationCount.textContent = `${gameState.accusations_made || 0}/${gameState.max_accusations || 3}`;
 
     // Suspects
     if (gameState.suspects && gameState.suspects.length > 0) {

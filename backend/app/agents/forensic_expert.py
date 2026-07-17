@@ -37,9 +37,17 @@ Do NOT include any section headers or advisory text."""
     ) -> Dict[str, Any]:
         """Analyze a piece of evidence — returns cold forensic facts only."""
         
+        # Build context with date and time information
         case_context = f"""CASE: {game_state.case_title}
 VICTIM: {game_state.victim.get('name', 'Unknown')}
-CAUSE OF DEATH: {game_state.victim.get('cause_of_death', getattr(game_state, 'method', 'Unknown'))}"""
+CAUSE OF DEATH: {game_state.victim.get('cause_of_death', getattr(game_state, 'method', 'Unknown'))}
+CASE DATE: {game_state.case_date or 'Unknown'}
+MURDER TIME: {game_state.murder_time or 'Unknown'}
+
+IMPORTANT: The murder occurred at {game_state.murder_time or 'Unknown'} on {game_state.case_date or 'Unknown'}.
+If this evidence contains timestamps (CCTV, emails, receipts, phone logs, access logs, etc.),
+ensure they are logically consistent with the murder time.
+Do not add timestamps to evidence that would not normally have one."""
         
         prompt = f"""Write a forensic lab report for this evidence item.
 

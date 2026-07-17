@@ -41,12 +41,27 @@ Rules:
     async def get_intro(self, game_state: GameState) -> str:
         """Get the introduction narrative for the case."""
         
+        # Build intro with case metadata
+        intro_header = f"""
+Case: {game_state.case_title}
+
+Date: {game_state.case_date or 'Unknown'}
+Estimated Time of Death: {game_state.murder_time or 'Unknown'}
+
+Victim: {game_state.victim.get('name', 'Unknown')}
+Location: {game_state.victim.get('location', 'The crime scene')}
+
+----------------------------------
+"""
+        
         prompt = f"""You are the Game Master. Introduce this murder mystery case to the detective:
 
 CASE: {game_state.case_title}
 DESCRIPTION: {game_state.case_description}
 VICTIM: {game_state.victim.get('name', 'Unknown')}
 SUSPECTS: {', '.join([s.name for s in game_state.suspects])}
+DATE OF MURDER: {game_state.case_date or 'Unknown'}
+TIME OF MURDER: {game_state.murder_time or 'Unknown'}
 
 Write a dramatic, engaging introduction that:
 1. Sets the scene
@@ -63,7 +78,10 @@ Keep it immersive and mysterious."""
             max_tokens=1024
         )
         
-        return response.content
+        # Combine header and narrative
+        return f"{intro_header}\n{response.content}"
+    
+    # ... rest of game_master.py remains the same ...
     
     async def get_hint(self, game_state: GameState) -> str:
         """Give a context-aware, tiered hint to help the player progress."""

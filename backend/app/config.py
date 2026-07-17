@@ -17,8 +17,7 @@ class Settings(BaseSettings):
     suspect_model: str = Field("groq/llama-3.3-70b-versatile", env="SUSPECT_MODEL")
     
     # Game Settings
-    max_accusations: int = Field(3, env="MAX_ACCUSATIONS")
-    time_limit: int = Field(900, env="TIME_LIMIT")  # seconds
+    max_accusations: int = Field(1, env="MAX_ACCUSATIONS")
     default_suspects: int = Field(4, env="DEFAULT_SUSPECTS")
     default_witnesses: int = Field(2, env="DEFAULT_WITNESSES")
         

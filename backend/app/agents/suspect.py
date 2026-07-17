@@ -71,15 +71,20 @@ FORMAT EXAMPLE:
         """Interrogate the suspect with a question."""
         self.interrogation_count += 1
         
-        # Build the user message with only the new question + any evidence
-        user_content = f"Detective: {question}"
+        # Build the user message with date/time context
+        date_context = f"""
+    [Case Date: {self.game_state.case_date or 'Unknown'}]
+    [Murder Time: {self.game_state.murder_time or 'Unknown'}]
+    """
+        
+        user_content = f"{date_context}\nDetective: {question}"
         if evidence_presented:
             evidence_str = "\n".join(f"- {e}" for e in evidence_presented)
-            user_content = f"[Evidence shown to you: {evidence_str}]\nDetective: {question}"
+            user_content = f"{date_context}\n[Evidence shown to you: {evidence_str}]\nDetective: {question}"
         
         # Build messages: system + last 3 prior conversation pairs + current question
         max_history_pairs = 3
-        prior_history = self.conversation_history  # history before this question
+        prior_history = self.conversation_history
         recent = prior_history[-(max_history_pairs * 2):]
         
         messages = (
@@ -96,7 +101,6 @@ FORMAT EXAMPLE:
         
         cleaned_response = self._clean_response(response.content)
         
-        # Now store in history
         self.add_to_history("user", user_content)
         self.add_to_history("assistant", cleaned_response)
         self.suspect.statements.append(cleaned_response)
