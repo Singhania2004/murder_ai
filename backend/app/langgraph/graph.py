@@ -215,9 +215,10 @@ class GameGraph:
         action_map = {
             "interrogate": "interrogate_suspect",
             "analyze": "analyze_evidence",
-            "discover": "discover_evidence",  # Add this
+            "discover": "discover_evidence",
             "hint": "get_hint",
-            "accuse": "make_accusation"
+            "accuse": "make_accusation",
+            "verify_alibi": "verify_alibi"  # Add this
         }
         
         node = action_map.get(action)
@@ -251,6 +252,9 @@ class GameGraph:
             # Directly call the appropriate node handler
             if node == "interrogate_suspect":
                 result = await self.node_handler.interrogate_suspect_node(initial_state)
+            # In the node handling section, add:
+            elif node == "verify_alibi":
+                result = await self.node_handler.verify_alibi_node(initial_state)
             elif node == "analyze_evidence":
                 result = await self.node_handler.analyze_evidence_node(initial_state)
             elif node == "discover_evidence":

@@ -240,7 +240,89 @@ Example for "A receipt from a hardware store was found in the trash, dated the d
                 "error": f"Failed to get hint: {str(e)}",
                 "next_node": "awaiting_input"
             }
-    
+        
+    async def verify_alibi_node(self, state: AgentState) -> Dict[str, Any]:
+        """Verify a suspect's alibi."""
+        game_state = state["game_state"]
+        suspect_id = state.get("suspect_id")
+        
+        if not suspect_id:
+            return {
+                "error": "Missing suspect_id",
+                "next_node": "awaiting_input",
+                "response": "Please select a suspect first."
+            }
+        
+        suspect = game_state.get_suspect(suspect_id)
+        if not suspect:
+            return {
+                "error": f"Suspect {suspect_id} not found",
+                "next_node": "awaiting_input"
+            }
+        
+        # Check if suspect has been interrogated
+        if not suspect.interrogated:
+            result = f"❌ {suspect.name} has not been interrogated yet. Ask them about their whereabouts first."
+            
+            game_state.chat_history.append({
+                "role": "detective",
+                "content": f"Tried to verify {suspect.name}'s alibi without interrogation"
+            })
+            game_state.chat_history.append({
+                "role": "system",
+                "content": result
+            })
+            
+            return {
+                "game_state": game_state,
+                "response": f"**Alibi Verification**: {result}",
+                "next_node": "awaiting_input"
+            }
+        
+        # Check if alibi is verifiable
+        if not suspect.alibi_verifiable:
+            result = f"❌ {suspect.name}'s alibi cannot be verified — they were alone with no witnesses."
+            suspect.alibi_verification_result = result
+            
+            game_state.chat_history.append({
+                "role": "detective",
+                "content": f"Tried to verify {suspect.name}'s alibi"
+            })
+            game_state.chat_history.append({
+                "role": "system",
+                "content": result
+            })
+            
+            return {
+                "game_state": game_state,
+                "response": f"**Alibi Verification**: {result}",
+                "next_node": "awaiting_input"
+            }
+        
+        # Generate verification result based on alibi_truth
+        if suspect.alibi_truth:
+            result = f"✅ {suspect.name}'s alibi has been VERIFIED: {suspect.alibi_verification_details} confirms they were telling the truth."
+        else:
+            result = f"❌ {suspect.name}'s alibi has been CONTRADICTED: {suspect.alibi_verification_details} shows they were NOT where they claimed to be."
+        
+        # Store the result
+        suspect.alibi_verification_result = result
+        
+        game_state.chat_history.append({
+            "role": "detective",
+            "content": f"Verified {suspect.name}'s alibi"
+        })
+        game_state.chat_history.append({
+            "role": "system",
+            "content": result
+        })
+        
+        return {
+            "game_state": game_state,
+            "response": f"**Alibi Verification**: {result}",
+            "next_node": "awaiting_input"
+        }
+        
     async def make_accusation_node(self, state: AgentState) -> Dict[str, Any]:
         """Process a player's accusation."""
         game_state = state["game_state"]

@@ -264,6 +264,7 @@ function updatePlaceholder() {
     const action = actionSelect.value;
     const placeholderMap = {
         'interrogate': 'Ask a question to the selected suspect...',
+        'verify_alibi': 'Click a suspect first, then Verify!',
         'discover': 'Where do you want to search? (optional)',
         'analyze': 'Click a clue first, no typing needed!',
         'hint': 'No typing needed, just click Send!',
@@ -280,6 +281,7 @@ updatePlaceholder();
 
 // Send message
 // Send message
+// Send message
 function sendMessage() {
     if (!isConnected) {
         addMessage('error', 'Not connected to server. Please refresh.');
@@ -288,6 +290,22 @@ function sendMessage() {
 
     const action = actionSelect.value;
     const input = chatInput.value.trim();
+
+    // For verify_alibi - no input needed, just selected suspect
+    if (action === 'verify_alibi') {
+        if (!selectedSuspectId) {
+            addMessage('error', 'Please click on a suspect to verify their alibi first.');
+            return;
+        }
+        ws.send(JSON.stringify({
+            action: 'verify_alibi',
+            suspect_id: selectedSuspectId
+        }));
+        const suspectName = getSuspectName(selectedSuspectId);
+        addMessage('detective', `✅ Verifying ${suspectName}'s alibi...`);
+        chatInput.value = '';
+        return;
+    }
 
     // For analyze, we don't need text input
     if (action === 'analyze') {
@@ -551,6 +569,7 @@ function resetGame() {
 function setupActionSelect() {
     actionSelect.innerHTML = `
         <option value="interrogate">🔍 Interrogate</option>
+        <option value="verify_alibi">✅ Verify Alibi</option>
         <option value="discover">🔎 Search for Evidence</option>
         <option value="analyze">🔬 Analyze Evidence</option>
         <option value="hint">💡 Get Hint</option>

@@ -73,8 +73,7 @@ Make the mystery challenging but solvable through logical deduction."""
         
         # Randomly select how many clues (3-4) and red herrings (1-2)
         num_clues = random.randint(3, 4)
-        # num_red_herrings = random.randint(1, 2)
-        num_red_herrings = 1
+        num_red_herrings = random.randint(1, 2)
         
         prompt = f"""Create a CHALLENGING murder mystery with the following parameters:
         - Number of suspects: {num_suspects}
@@ -121,8 +120,34 @@ Make the mystery challenging but solvable through logical deduction."""
         - "A text message was received" - no way to verify who sent it
         - "A note was found" - unless it has specific handwriting that can be matched
         
-        IMPORTANT: You need {num_clues} clues and {num_red_herrings} red herrings.
-        Total evidence items: {num_clues + num_red_herrings}
+        ALIBI VARIETY RULES - FOLLOW CAREFULLY:
+        Each suspect's alibi should be DIFFERENT in terms of verifiability and truthfulness.
+        
+        For each suspect, you MUST provide these alibi fields:
+        - alibi: The alibi statement (what they claim to have been doing)
+        - alibi_verifiable: true/false - can this alibi be checked with external evidence?
+        - alibi_truth: true/false - is the alibi actually true?
+        - alibi_verification_details: How to verify (e.g., "Call the restaurant", "Check security footage", "Ask the client")
+        
+        ALIBI CATEGORIES:
+        1. TRUE & VERIFIABLE: "Was in a meeting with client from 7-9 PM" → Can be confirmed by client
+           → alibi_verifiable: true, alibi_truth: true, details: "Ask the client to confirm the meeting"
+        
+        2. TRUE & UNVERIFIABLE: "Was home alone watching TV" → Cannot be confirmed, but actually true
+           → alibi_verifiable: false, alibi_truth: true, details: "No witnesses - alone at home"
+        
+        3. FALSE & UNVERIFIABLE: "Was home alone" (but was actually at crime scene) → Cannot be confirmed, but false
+           → alibi_verifiable: false, alibi_truth: false, details: "No witnesses - claims to be alone at home"
+        
+        4. FALSE & VERIFIABLE: "Was at restaurant" (but was actually elsewhere) → Can be confirmed as false by staff
+           → alibi_verifiable: true, alibi_truth: false, details: "Restaurant staff can confirm they weren't there"
+        
+        ALIBI VARIETY REQUIREMENT:
+        Distribute the alibis across these categories. At minimum:
+        - At least 1 suspect should have a TRUE & VERIFIABLE alibi
+        - At least 1 suspect should have a FALSE & VERIFIABLE alibi (could be the killer or not)
+        - The remaining suspects can be TRUE & UNVERIFIABLE or FALSE & UNVERIFIABLE
+        - The killer should NOT be the only one with a false alibi
         
         Return the case as a JSON object:
         {{
@@ -145,7 +170,10 @@ Make the mystery challenging but solvable through logical deduction."""
                     "role": "Relationship to victim",
                     "personality": "Personality description",
                     "backstory": "Why they might have motive",
-                    "alibi": "Their alibi (can include time references)",
+                    "alibi": "Their alibi statement",
+                    "alibi_verifiable": true/false,
+                    "alibi_truth": true/false,
+                    "alibi_verification_details": "How to verify this alibi",
                     "secrets": ["Secret that makes them look guilty"],
                     "is_killer": false
                 }}
@@ -167,21 +195,23 @@ Make the mystery challenging but solvable through logical deduction."""
                     "name": "Short 2-4 word label",
                     "description": "A specific, actionable clue",
                     "type": "physical/document/digital"
-                }},
-                // Add {num_clues - 1} more clues (total of {num_clues})
+                }}
             ],
             "red_herrings": [
                 {{
                     "name": "Short 2-4 word label",
                     "description": "A misleading clue that points to an innocent suspect",
                     "type": "physical/document/digital"
-                }},
-                // Add {num_red_herrings - 1} more red herrings (total of {num_red_herrings})
+                }}
             ]
         }}
         
+        IMPORTANT: You need {num_clues} clues and {num_red_herrings} red herrings.
+        Total evidence items: {num_clues + num_red_herrings}
+        
         Make the mystery challenging but solvable with careful deduction.
-        Ensure clues are SPECIFIC and INVESTIGATABLE."""
+        Ensure clues are SPECIFIC and INVESTIGATABLE.
+        Ensure alibis are VARIED - mix of true/false and verifiable/unverifiable."""
         
         response = await self._call_llm(
             prompt=prompt,
@@ -201,6 +231,11 @@ Make the mystery challenging but solvable through logical deduction."""
             # Log the number of clues and red herrings
             logger.info(f"Generated case: {case_data['case_title']} (Date: {date_str}, Time: {time_str})")
             logger.info(f"Clues: {len(case_data.get('clues', []))}, Red Herrings: {len(case_data.get('red_herrings', []))}")
+            
+            # Log alibi variety
+            for i, suspect in enumerate(case_data.get("suspects", [])):
+                logger.info(f"  Suspect {i+1}: {suspect.get('name')} - Verifiable: {suspect.get('alibi_verifiable')}, Truth: {suspect.get('alibi_truth')}")
+            
             return case_data
         except Exception as e:
             logger.error(f"Error parsing case: {str(e)}")
@@ -233,7 +268,12 @@ Make the mystery challenging but solvable through logical deduction."""
                 backstory=suspect_data["backstory"],
                 alibi=suspect_data["alibi"],
                 secrets=suspect_data.get("secrets", []),
-                is_killer=suspect_data.get("is_killer", False)
+                is_killer=suspect_data.get("is_killer", False),
+                # Alibi verification fields
+                alibi_verifiable=suspect_data.get("alibi_verifiable", False),
+                alibi_truth=suspect_data.get("alibi_truth", False),
+                alibi_verification_details=suspect_data.get("alibi_verification_details", ""),
+                alibi_verification_result=None
             ))
         
         witnesses = []

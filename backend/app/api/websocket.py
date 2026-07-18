@@ -89,6 +89,31 @@ async def handle_websocket(websocket: WebSocket, client_id: str):
                         "game_complete": result.get("game_complete", False),
                         "correct": result.get("correct")
                     })
+
+                elif action == "verify_alibi":
+                    game_state = game_graph.get_current_state()
+                    if not game_state:
+                        await manager.send_message(client_id, {
+                            "type": "error",
+                            "message": "No game in progress. Start a new game first."
+                        })
+                        continue
+                    
+                    result = await game_graph.process_action(
+                        action="verify_alibi",
+                        suspect_id=message.get("suspect_id")
+                    )
+                    
+                    game_state_data = serialize_game_state(result.get("game_state"))
+                    
+                    await manager.send_message(client_id, {
+                        "type": "action_result",
+                        "action": action,
+                        "response": result.get("response"),
+                        "game_state": game_state_data,
+                        "game_complete": result.get("game_complete", False),
+                        "correct": result.get("correct")
+                    })
                 
                 elif action == "analyze":
                     game_state = game_graph.get_current_state()

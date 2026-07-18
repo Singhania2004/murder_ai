@@ -18,6 +18,12 @@ class Suspect(BaseModel):
     is_killer: bool = False
     interrogated: bool = False
     statements: List[str] = []
+    
+    # Alibi verification fields
+    alibi_verifiable: bool = False  # Can this alibi be verified?
+    alibi_truth: bool = False  # Is the alibi actually true?
+    alibi_verification_details: str = ""  # How to verify (e.g., "Call restaurant", "Check security footage")
+    alibi_verification_result: Optional[str] = None  # Result after verification
 
 
 class Witness(BaseModel):
