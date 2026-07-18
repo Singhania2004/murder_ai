@@ -127,6 +127,7 @@ class NodeHandler:
         try:
             result = await self.forensic_expert.analyze_evidence(clue, game_state)
             
+            clue.analyzed = True
             clue.discovered = True
             
             game_state.chat_history.append({
@@ -137,6 +138,9 @@ class NodeHandler:
                 "role": "forensic_expert",
                 "content": result["analysis"]
             })
+            
+            # Rebuild suspect facts after analysis (in case new clues were discovered)
+            game_state.build_suspect_facts()
             
             return {
                 "game_state": game_state,
@@ -171,15 +175,6 @@ class NodeHandler:
             clue = new_clues[0]
             clue.discovered = True
             
-            # Determine clue type label for the vague prompt
-            type_label_map = {
-                "physical": "a physical object or mark",
-                "document": "a written or printed document",
-                "digital": "a digital or electronic record",
-                "testimony": "a trace left by someone",
-            }
-            vague_type = type_label_map.get(clue.type, "something unusual")
-            
             # Generate a narrative that mentions the general item found without the forensic details
             prompt = f"""Write a 1-2 sentence atmospheric discovery narrative for a detective searching {search_area}.
             
@@ -208,6 +203,9 @@ Example for "A receipt from a hardware store was found in the trash, dated the d
                 max_tokens=80
             )
             
+            # Rebuild suspect facts after discovering new clues
+            game_state.build_suspect_facts()
+            
             return {
                 "game_state": game_state,
                 "response": response.content,
@@ -222,25 +220,6 @@ Example for "A receipt from a hardware store was found in the trash, dated the d
                 "next_node": "awaiting_input"
             }
     
-    async def get_hint_node(self, state: AgentState) -> Dict[str, Any]:
-        """Get a hint from the game master."""
-        game_state = state["game_state"]
-        
-        try:
-            hint = await self.game_master.get_hint(game_state)
-            
-            return {
-                "response": f"**Game Master's Hint**: {hint}",
-                "next_node": "awaiting_input"
-            }
-            
-        except Exception as e:
-            logger.error(f"Error getting hint: {str(e)}")
-            return {
-                "error": f"Failed to get hint: {str(e)}",
-                "next_node": "awaiting_input"
-            }
-        
     async def verify_alibi_node(self, state: AgentState) -> Dict[str, Any]:
         """Verify a suspect's alibi."""
         game_state = state["game_state"]
@@ -322,7 +301,26 @@ Example for "A receipt from a hardware store was found in the trash, dated the d
             "response": f"**Alibi Verification**: {result}",
             "next_node": "awaiting_input"
         }
+    
+    async def get_hint_node(self, state: AgentState) -> Dict[str, Any]:
+        """Get a hint from the game master."""
+        game_state = state["game_state"]
         
+        try:
+            hint = await self.game_master.get_hint(game_state)
+            
+            return {
+                "response": f"**Game Master's Hint**: {hint}",
+                "next_node": "awaiting_input"
+            }
+            
+        except Exception as e:
+            logger.error(f"Error getting hint: {str(e)}")
+            return {
+                "error": f"Failed to get hint: {str(e)}",
+                "next_node": "awaiting_input"
+            }
+    
     async def make_accusation_node(self, state: AgentState) -> Dict[str, Any]:
         """Process a player's accusation."""
         game_state = state["game_state"]

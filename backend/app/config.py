@@ -12,14 +12,14 @@ class Settings(BaseSettings):
     groq_api_key: str = Field(..., env="GROQ_API_KEY")
     
     # Model Configuration - Using confirmed working models
-    primary_model: str = Field("groq/llama-3.3-70b-versatile", env="PRIMARY_MODEL")
-    forensic_model: str = Field("groq/llama-3.1-8b-instant", env="FORENSIC_MODEL")
-    suspect_model: str = Field("groq/llama-3.3-70b-versatile", env="SUSPECT_MODEL")
+    primary_model: str = "groq/llama-3.3-70b-versatile"
+    forensic_model: str = "groq/llama-3.1-8b-instant"
+    suspect_model: str = "groq/llama-3.3-70b-versatile"
     
     # Game Settings
-    max_accusations: int = Field(1, env="MAX_ACCUSATIONS")
-    default_suspects: int = Field(4, env="DEFAULT_SUSPECTS")
-    default_witnesses: int = Field(2, env="DEFAULT_WITNESSES")
+    max_accusations: int = 1
+    default_suspects: int = 4
+    default_witnesses: int = 2
         
     # Server
     host: str = "0.0.0.0"

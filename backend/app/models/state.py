@@ -6,6 +6,12 @@ from datetime import datetime
 import uuid
 
 
+class SuspectFacts(BaseModel):
+    """Facts about a suspect derived from clues."""
+    facts: Dict[str, Any] = {}  # e.g., {"shoe_size": 10, "shoe_brand": "TerraForce", "jacket_color": "black"}
+    known_evidence: List[str] = []  # Clue descriptions the suspect knows about
+
+
 class Suspect(BaseModel):
     """Suspect data model."""
     id: str
@@ -20,10 +26,14 @@ class Suspect(BaseModel):
     statements: List[str] = []
     
     # Alibi verification fields
-    alibi_verifiable: bool = False  # Can this alibi be verified?
-    alibi_truth: bool = False  # Is the alibi actually true?
-    alibi_verification_details: str = ""  # How to verify (e.g., "Call restaurant", "Check security footage")
-    alibi_verification_result: Optional[str] = None  # Result after verification
+    alibi_verifiable: bool = False
+    alibi_truth: bool = False
+    alibi_verification_details: str = ""
+    alibi_verification_result: Optional[str] = None
+    
+    # Facts from clues (populated during game state creation)
+    facts: Dict[str, Any] = {}  # e.g., {"shoe_size": 10, "shoe_brand": "TerraForce"}
+    known_evidence: List[str] = []  # Clue descriptions the suspect knows about
 
 
 class Witness(BaseModel):
@@ -47,6 +57,12 @@ class Clue(BaseModel):
     discovered: bool = False
     analyzed: bool = False
     analysis: Optional[str] = None
+    
+    # New fact-based fields
+    belongs_to: Optional[str] = None  # Suspect ID (e.g., "s1") or None for general evidence
+    reveals: Dict[str, Any] = {}  # Facts revealed by this clue, e.g., {"shoe_size": 10, "shoe_brand": "TerraForce"}
+    known_by_owner: bool = True  # Does the suspect know about this evidence?
+    truth: Optional[str] = None  # Optional explanation of what this clue means
     
     @field_validator('type', mode='before')
     @classmethod
@@ -81,8 +97,8 @@ class GameState(BaseModel):
     case_title: str = ""
     case_description: str = ""
     theme: str = ""
-    case_date: str = ""      # ADD THIS
-    murder_time: str = ""    # ADD THIS
+    case_date: str = ""
+    murder_time: str = ""
     victim: Dict[str, Any] = {}
     
     # Characters
@@ -116,6 +132,13 @@ class GameState(BaseModel):
                 return clue
         return None
     
+    def get_suspect_by_name(self, name: str) -> Optional[Suspect]:
+        """Get a suspect by name (case-insensitive)."""
+        for suspect in self.suspects:
+            if suspect.name.lower() == name.lower():
+                return suspect
+        return None
+    
     def add_clue(self, clue: Clue):
         self.discovered_clues.append(clue)
     
@@ -126,6 +149,26 @@ class GameState(BaseModel):
         suspect = self.get_suspect(suspect_id)
         if suspect:
             suspect.interrogated = True
+    
+    def build_suspect_facts(self):
+        """Build facts for each suspect from their clues."""
+        # Reset facts
+        for suspect in self.suspects:
+            suspect.facts = {}
+            suspect.known_evidence = []
+        
+        # Collect facts from clues
+        for clue in self.discovered_clues:
+            if clue.belongs_to and clue.reveals:
+                suspect = self.get_suspect(clue.belongs_to)
+                if suspect:
+                    # Add facts
+                    for key, value in clue.reveals.items():
+                        suspect.facts[key] = value
+                    
+                    # Add to known evidence if suspect knows about it
+                    if clue.known_by_owner:
+                        suspect.known_evidence.append(clue.description)
     
     def to_dict(self) -> Dict[str, Any]:
         return self.model_dump()

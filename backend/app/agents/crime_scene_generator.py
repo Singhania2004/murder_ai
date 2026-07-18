@@ -149,6 +149,41 @@ Make the mystery challenging but solvable through logical deduction."""
         - The remaining suspects can be TRUE & UNVERIFIABLE or FALSE & UNVERIFIABLE
         - The killer should NOT be the only one with a false alibi
         
+        FACT-BASED CLUE SYSTEM - CRITICAL FOR CONSISTENCY:
+        Each clue must now include who it belongs to and what facts it reveals.
+        
+        For each clue and red herring, include:
+        - belongs_to: The suspect ID (e.g., "s1", "s2", etc.) or null if unclaimed
+        - reveals: An object containing facts about that suspect (e.g., {{"shoe_size": 10, "shoe_brand": "TerraForce", "jacket_color": "black"}})
+        - known_by_owner: true/false - does the suspect know this evidence exists?
+        - truth: Optional explanation of what this clue means
+        
+        Examples:
+        {{
+            "name": "Bloody Shoe",
+            "description": "A shoe with a unique sole pattern was found with bloodstains",
+            "type": "physical",
+            "belongs_to": "s2",
+            "reveals": {{"shoe_size": 10, "shoe_brand": "TerraForce"}},
+            "known_by_owner": true,
+            "truth": "The suspect stepped in the victim's blood while fleeing"
+        }}
+        
+        {{
+            "name": "Hidden Fingerprint",
+            "description": "A partial fingerprint was found under the victim's desk",
+            "type": "physical",
+            "belongs_to": "s1",
+            "reveals": {{"fingerprint_location": "under desk"}},
+            "known_by_owner": false,
+            "truth": "The suspect left a fingerprint while planting evidence"
+        }}
+        
+        IMPORTANT:
+        - Every clue should have belongs_to, reveals, known_by_owner
+        - Red herrings should belong to innocent suspects to mislead
+        - The killer's clues should reveal facts that point to them
+        
         Return the case as a JSON object:
         {{
             "case_title": "Title of the case",
@@ -194,14 +229,22 @@ Make the mystery challenging but solvable through logical deduction."""
                 {{
                     "name": "Short 2-4 word label",
                     "description": "A specific, actionable clue",
-                    "type": "physical/document/digital"
+                    "type": "physical/document/digital",
+                    "belongs_to": "s1 or s2 etc.",
+                    "reveals": {{"fact_key": "fact_value"}},
+                    "known_by_owner": true/false,
+                    "truth": "What this clue means"
                 }}
             ],
             "red_herrings": [
                 {{
                     "name": "Short 2-4 word label",
                     "description": "A misleading clue that points to an innocent suspect",
-                    "type": "physical/document/digital"
+                    "type": "physical/document/digital",
+                    "belongs_to": "s1 or s2 etc.",
+                    "reveals": {{"fact_key": "fact_value"}},
+                    "known_by_owner": true/false,
+                    "truth": "What this misleading clue means"
                 }}
             ]
         }}
@@ -211,7 +254,8 @@ Make the mystery challenging but solvable through logical deduction."""
         
         Make the mystery challenging but solvable with careful deduction.
         Ensure clues are SPECIFIC and INVESTIGATABLE.
-        Ensure alibis are VARIED - mix of true/false and verifiable/unverifiable."""
+        Ensure alibis are VARIED - mix of true/false and verifiable/unverifiable.
+        Ensure EVERY clue has belongs_to, reveals, and known_by_owner."""
         
         response = await self._call_llm(
             prompt=prompt,
@@ -258,6 +302,7 @@ Make the mystery challenging but solvable through logical deduction."""
     def create_game_state_from_case(self, case_data: Dict[str, Any]) -> GameState:
         """Convert case data to a GameState object."""
         
+        # First, create suspects
         suspects = []
         for i, suspect_data in enumerate(case_data.get("suspects", [])):
             suspects.append(Suspect(
@@ -294,28 +339,54 @@ Make the mystery challenging but solvable through logical deduction."""
                 killer_id = suspect.id
                 break
         
+        # Create clues with facts
         clues = []
+        
+        # Process regular clues
         for clue_data in case_data.get("clues", []):
+            belongs_to = clue_data.get("belongs_to")
+            # If belongs_to is a name, convert to ID
+            if belongs_to and not belongs_to.startswith("s"):
+                suspect = next((s for s in suspects if s.name.lower() == belongs_to.lower()), None)
+                if suspect:
+                    belongs_to = suspect.id
+            
             clues.append(Clue(
                 id=f"c{len(clues)+1}",
                 name=clue_data.get("name", "") or self._derive_clue_name(clue_data["description"]),
                 description=clue_data["description"],
                 type=clue_data.get("type", "physical"),
                 is_red_herring=False,
-                discovered=False
+                discovered=False,
+                belongs_to=belongs_to,
+                reveals=clue_data.get("reveals", {}),
+                known_by_owner=clue_data.get("known_by_owner", True),
+                truth=clue_data.get("truth")
             ))
         
+        # Process red herrings
         for herring_data in case_data.get("red_herrings", []):
+            belongs_to = herring_data.get("belongs_to")
+            if belongs_to and not belongs_to.startswith("s"):
+                suspect = next((s for s in suspects if s.name.lower() == belongs_to.lower()), None)
+                if suspect:
+                    belongs_to = suspect.id
+            
             clues.append(Clue(
                 id=f"c{len(clues)+1}",
                 name=herring_data.get("name", "") or self._derive_clue_name(herring_data["description"]),
                 description=herring_data["description"],
                 type=herring_data.get("type", "physical"),
                 is_red_herring=True,
-                discovered=False
+                discovered=False,
+                belongs_to=belongs_to,
+                reveals=herring_data.get("reveals", {}),
+                known_by_owner=herring_data.get("known_by_owner", True),
+                truth=herring_data.get("truth")
             ))
         
-        return GameState(
+        # Create game state
+        game_state = GameState(
             case_title=case_data.get("case_title", "Untitled Mystery"),
             case_description=case_data.get("case_description", ""),
             theme=case_data.get("theme", "unknown"),
@@ -329,6 +400,11 @@ Make the mystery challenging but solvable through logical deduction."""
             timeline=case_data.get("timeline", []),
             discovered_clues=clues
         )
+        
+        # Build suspect facts from clues
+        game_state.build_suspect_facts()
+        
+        return game_state
     
     async def process(
         self,

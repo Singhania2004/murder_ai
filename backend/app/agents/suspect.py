@@ -31,9 +31,11 @@ class SuspectAgent(BaseAgent):
     def update_context(self, game_state: GameState):
         """Update the agent's context with latest game state."""
         self.game_state = game_state
+        # Rebuild system prompt with updated facts
+        self.system_prompt = self._build_system_prompt()
     
     def _build_system_prompt(self) -> str:
-        """Build the system prompt for this suspect."""
+        """Build the system prompt for this suspect with facts."""
         suspect = self.suspect
         
         killer_status = (
@@ -41,6 +43,22 @@ class SuspectAgent(BaseAgent):
             if suspect.is_killer
             else "You are INNOCENT. React with genuine emotion — confused, irritated, or frightened when accused."
         )
+        
+        # Build facts section
+        facts_section = ""
+        if suspect.facts:
+            facts_section = "\n\nPHYSICAL FACTS ABOUT YOU:\n"
+            for key, value in suspect.facts.items():
+                # Format the key nicely
+                display_key = key.replace('_', ' ').title()
+                facts_section += f"- {display_key}: {value}\n"
+        
+        # Build known evidence section
+        evidence_section = ""
+        if suspect.known_evidence:
+            evidence_section = "\nEVIDENCE YOU ARE AWARE OF:\n"
+            for evidence in suspect.known_evidence:
+                evidence_section += f"- {evidence}\n"
         
         prompt = f"""You are {suspect.name}, the {suspect.role} in a murder investigation being interrogated by a detective.
 
@@ -50,6 +68,7 @@ YOUR ALIBI: {suspect.alibi}
 YOUR SECRETS: {', '.join(suspect.secrets)}
 
 STATUS: {killer_status}
+{facts_section}{evidence_section}
 
 STRICT OUTPUT RULES — FOLLOW EXACTLY:
 - Output ONLY {suspect.name}'s spoken response. Nothing else.
@@ -57,6 +76,8 @@ STRICT OUTPUT RULES — FOLLOW EXACTLY:
 - Start IMMEDIATELY with a physical/emotional expression in [square brackets], then speak.
 - Keep it to 2-4 sentences max.
 - Use natural speech with contractions (I'm, I've, wasn't, etc.)
+- If asked about your physical attributes (shoe size, clothing, etc.), refer to the PHYSICAL FACTS section.
+- If asked about evidence you're aware of, refer to the EVIDENCE YOU ARE AWARE OF section.
 
 FORMAT EXAMPLE:
 [crossing arms defensively] I already told the police everything. I was at the charity gala the entire evening — dozens of people saw me there."""
@@ -73,9 +94,9 @@ FORMAT EXAMPLE:
         
         # Build the user message with date/time context
         date_context = f"""
-    [Case Date: {self.game_state.case_date or 'Unknown'}]
-    [Murder Time: {self.game_state.murder_time or 'Unknown'}]
-    """
+[Case Date: {self.game_state.case_date or 'Unknown'}]
+[Murder Time: {self.game_state.murder_time or 'Unknown'}]
+"""
         
         user_content = f"{date_context}\nDetective: {question}"
         if evidence_presented:
