@@ -133,7 +133,6 @@ class GameGraph:
         self._game_initialized = False
         self._current_game_state = None
         self.node_handler.suspect_agents.clear()
-        self.node_handler.witness_agents.clear()
         
         initial_state = {
             "game_state": None,
@@ -301,4 +300,3 @@ class GameGraph:
         self._current_game_state = None
         self._game_initialized = False
         self.node_handler.suspect_agents.clear()
-        self.node_handler.witness_agents.clear()

@@ -36,17 +36,6 @@ class Suspect(BaseModel):
     known_evidence: List[str] = []  # Clue descriptions the suspect knows about
 
 
-class Witness(BaseModel):
-    """Witness data model."""
-    id: str
-    name: str
-    statement: str
-    credibility: float = 0.7
-    additional_info: Optional[str] = None
-    connected_to: Optional[str] = None
-    connection_type: Optional[str] = None
-
-
 class Clue(BaseModel):
     """Clue data model."""
     id: str
@@ -103,7 +92,6 @@ class GameState(BaseModel):
     
     # Characters
     suspects: List[Suspect] = []
-    witnesses: List[Witness] = []
     true_killer_id: Optional[str] = None
     motive: str = ""
     timeline: List[Dict[str, str]] = []

@@ -4,7 +4,6 @@ from typing import Dict, Any, List
 from app.agents.crime_scene_generator import CrimeSceneGenerator
 from app.agents.suspect import SuspectAgent
 from app.agents.forensic_expert import ForensicExpert
-from app.agents.witness import WitnessAgent
 from app.agents.game_master import GameMaster
 from app.langgraph.state import AgentState
 from app.utils.logger import logger
@@ -18,7 +17,6 @@ class NodeHandler:
         self.forensic_expert = ForensicExpert()
         self.game_master = GameMaster()
         self.suspect_agents = {}
-        self.witness_agents = {}
     
     async def generate_case_node(self, state: AgentState) -> Dict[str, Any]:
         """Generate a new case."""
@@ -34,7 +32,6 @@ class NodeHandler:
             intro = await self.game_master.get_intro(game_state)
             
             self.suspect_agents.clear()
-            self.witness_agents.clear()
             
             return {
                 "game_state": game_state,
@@ -260,7 +257,7 @@ Example for "A receipt from a hardware store was found in the trash, dated the d
         
         # Check if alibi is verifiable
         if not suspect.alibi_verifiable:
-            result = f"❌ {suspect.name}'s alibi cannot be verified — they were alone with no witnesses."
+            result = f"❌ {suspect.name}'s alibi cannot be verified."
             suspect.alibi_verification_result = result
             
             game_state.chat_history.append({

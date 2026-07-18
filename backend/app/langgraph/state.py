@@ -1,7 +1,7 @@
 """LangGraph state definitions for the murder mystery game."""
 
 from typing import List, Dict, Any, Optional, Literal, TypedDict
-from app.models.state import GameState, Suspect, Witness, Clue
+from app.models.state import GameState, Suspect, Clue
 
 
 class AgentState(TypedDict):

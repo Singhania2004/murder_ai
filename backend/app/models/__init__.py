@@ -1,9 +1,8 @@
 # Import state models for convenience
-from app.models.state import GameState, Suspect, Witness, Clue
+from app.models.state import GameState, Suspect, Clue
 
 __all__ = [
     "GameState",
     "Suspect", 
-    "Witness", 
     "Clue"
 ]

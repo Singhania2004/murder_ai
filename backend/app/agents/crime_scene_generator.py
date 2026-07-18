@@ -6,7 +6,7 @@ import re
 import random
 from typing import Dict, Any, List, Optional
 from app.agents.base import BaseAgent
-from app.models.state import Suspect, Witness, Clue, GameState
+from app.models.state import Suspect, Clue, GameState
 from app.utils.logger import logger
 
 
@@ -73,11 +73,10 @@ Make the mystery challenging but solvable through logical deduction."""
         
         # Randomly select how many clues (3-4) and red herrings (1-2)
         num_clues = random.randint(3, 4)
-        num_red_herrings = random.randint(1, 2)
+        num_red_herrings = 1
         
         prompt = f"""Create a CHALLENGING murder mystery with the following parameters:
         - Number of suspects: {num_suspects}
-        - Number of witnesses: {num_witnesses}
         - Theme: {case_theme}
         - MURDER METHOD: {method.upper()} - The victim was killed by {method_descriptions[method]}
         
@@ -213,16 +212,6 @@ Make the mystery challenging but solvable through logical deduction."""
                     "is_killer": false
                 }}
             ],
-            "witnesses": [
-                {{
-                    "name": "Witness name",
-                    "statement": "What they saw (can be vague)",
-                    "credibility": 0.8,
-                    "additional_info": "Extra info",
-                    "connected_to": "Which suspect this witness can verify",
-                    "connection_type": "alibi_verification"
-                }}
-            ],
             "true_killer_id": "index of the killer (make it someone who seems less obvious)",
             "motive": "The killer's true motive",
             "clues": [
@@ -321,18 +310,6 @@ Make the mystery challenging but solvable through logical deduction."""
                 alibi_verification_result=None
             ))
         
-        witnesses = []
-        for i, witness_data in enumerate(case_data.get("witnesses", [])):
-            witnesses.append(Witness(
-                id=f"w{i+1}",
-                name=witness_data["name"],
-                statement=witness_data["statement"],
-                credibility=witness_data.get("credibility", 0.7),
-                additional_info=witness_data.get("additional_info"),
-                connected_to=witness_data.get("connected_to"),
-                connection_type=witness_data.get("connection_type")
-            ))
-        
         killer_id = None
         for suspect in suspects:
             if suspect.is_killer:
@@ -394,7 +371,6 @@ Make the mystery challenging but solvable through logical deduction."""
             murder_time=case_data.get("murder_time", ""),
             victim=case_data.get("victim", {}),
             suspects=suspects,
-            witnesses=witnesses,
             true_killer_id=killer_id,
             motive=case_data.get("motive", ""),
             timeline=case_data.get("timeline", []),
@@ -417,10 +393,9 @@ Make the mystery challenging but solvable through logical deduction."""
         
         if action == "generate_case":
             num_suspects = input_data.get("num_suspects", 4)
-            num_witnesses = input_data.get("num_witnesses", 2)
             theme = input_data.get("theme")
             
-            case_data = await self.generate_case(num_suspects, num_witnesses, theme)
+            case_data = await self.generate_case(num_suspects, 0, theme)
             game_state = self.create_game_state_from_case(case_data)
             
             return {
