@@ -23,7 +23,7 @@ const notes = document.getElementById('notes');
 function connectWebSocket() {
     const isLocal = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
     const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const backendHost = isLocal ? 'localhost:8000' : 'https://murder-ai-backend.onrender.com'; // update after step 3
+    const backendHost = isLocal ? 'localhost:8000' : 'murder-ai-backend.onrender.com';
     const wsUrl = `${protocol}//${backendHost}/ws/client_${Date.now()}`;
     ws = new WebSocket(wsUrl);
 
