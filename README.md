@@ -1,5 +1,3 @@
-
-
 <div align="center">
   <h1>🔍 AI Murder Mystery</h1>
   <p><strong>A Multi-Agent Detective Game Powered by LangGraph and Groq</strong></p>
@@ -12,7 +10,8 @@
 
 ---
 
-![Demo](screenshots/demo.png)
+<img width="1917" height="891" alt="Screenshot 2026-07-14 181740" src="https://github.com/user-attachments/assets/dcecd58e-74c4-42b5-8fa5-526ee13823fe" />
+
 
 ---
 
@@ -37,15 +36,7 @@ Unlike traditional static mystery games, this project leverages AI agents to gen
 - **Game Master Agent**: Orchestrates the narrative, provides hints, and reveals the truth at the end
 - **Suspect Agents**: Each suspect is a unique agent with personality, facts, and deception capabilities
 - **Forensic Expert Agent**: Provides cold, factual analysis of evidence without speculation
-- **Crime Scene Generator**: Creates consistent, challenging cases with the FACT-BASED CLUE SYSTEM™
-
-### 🔬 FACT-BASED CLUE SYSTEM™
-Every clue belongs to a specific suspect and reveals factual attributes about them:
-- Physical attributes (shoe size, clothing, height)
-- Digital evidence (phone logs, CCTV footage)
-- Document evidence (receipts, letters, financial records)
-
-This ensures **perfect consistency** across the game—if a clue reveals a size 10 shoe, the suspect will truthfully answer "size 10" when questioned.
+- **Crime Scene Generator**: Creates consistent, challenging cases with a fact based clue system
 
 ### 🎨 User Interface
 - **Real-time Chat Interface**: Interrogate suspects and receive responses with emotional expressions like `[crossing arms defensively]`
@@ -115,6 +106,7 @@ flowchart TD
     style REVEAL fill:#1a1a2e,stroke:#e94560,color:#fff
 ```
 ​
+---
 
 ### Agent Roles
 
@@ -130,15 +122,12 @@ flowchart TD
 ## 🛠️ Tech Stack
 
 **Backend:**
-- FastAPI & Uvicorn (Web Framework)
-- LangGraph & LangChain (Agent Orchestration)
-- Groq API (LLM Inference - Llama 3, Mixtral)
-- Python 3.11+
+- Python
+- FastAPI & Uvicorn
 
 **Frontend:**
-- Vanilla HTML/CSS/JavaScript
-- WebSocket for real-time communication
-- No framework - lightweight and fast
+- LangGraph & LangChain (Agent Orchestration)
+- Groq API (LLM Inference - Llama 3, Mixtral)
 
 **Utilities:**
 - Pydantic (Data Validation)
@@ -170,9 +159,6 @@ pip install -r backend/requirements.txt
 Create a `.env` file in the `backend/` directory:
 ```env
 GROQ_API_KEY=your_groq_api_key_here
-PRIMARY_MODEL=groq/llama-3.3-70b-versatile
-FORENSIC_MODEL=groq/llama-3.1-8b-instant
-SUSPECT_MODEL=groq/llama-3.3-70b-versatile
 ```
 
 ### 5. Run the Backend Server
@@ -198,7 +184,7 @@ Open `http://localhost:3000` in your browser and click **Start Game**!
 ### Game Flow
 
 1. **Start Game**: The Crime Scene Generator creates a unique murder case
-2. **Search for Evidence**: Explore the crime scene to discover clues (max 4 clues, 1-2 red herrings)
+2. **Search for Evidence**: Explore the crime scene to discover clues (max 5 clues, 1-2 red herrings)
 3. **Analyze Evidence**: Click on discovered clues to get forensic analysis
 4. **Interrogate Suspects**: Ask questions to each suspect—they'll respond in character with emotions like `[crossing arms defensively]`
 5. **Verify Alibis**: Check if suspects' alibis are true or false using the "Verify Alibi" action
@@ -211,44 +197,6 @@ Open `http://localhost:3000` in your browser and click **Start Game**!
 - **Follow up on contradictions**: When a suspect's alibi is verified as false, dig deeper
 - **Use notes**: Take notes on what each suspect said to track inconsistencies
 - **Trust the evidence**: The forensic expert provides cold, factual analysis—use it!
-
----
-
-## 📂 Repository Structure
-
-```text
-.
-├── backend/
-│   ├── app/
-│   │   ├── agents/              # Agent implementations
-│   │   │   ├── base.py          # Base agent class
-│   │   │   ├── crime_scene_generator.py
-│   │   │   ├── forensic_expert.py
-│   │   │   ├── game_master.py
-│   │   │   └── suspect.py
-│   │   ├── api/                 # API routes & WebSocket handlers
-│   │   │   ├── routes.py
-│   │   │   └── websocket.py
-│   │   ├── langgraph/           # LangGraph orchestration
-│   │   │   ├── graph.py
-│   │   │   ├── nodes.py
-│   │   │   └── state.py
-│   │   ├── models/              # Data models & LLM clients
-│   │   │   ├── llm/
-│   │   │   └── state.py
-│   │   ├── utils/               # Utilities
-│   │   ├── config.py            # Configuration
-│   │   └── main.py              # FastAPI entry point
-│   ├── requirements.txt
-│   └── .env.example
-├── frontend/
-│   ├── index.html
-│   ├── styles.css
-│   └── app.js
-├── screenshots/
-│   └── demo.png
-└── README.md
-```
 
 ---
 
@@ -295,16 +243,6 @@ You caught the killer!
 
 ---
 
-## 🔮 Future Enhancements
-
-- **Voice Interrogation**: Use speech-to-text to interrogate suspects verbally
-- **Visual Crime Scene**: Generate AI images of crime scenes and clues
-- **Branching Narratives**: The story changes based on player actions
-- **Multiplayer Mode**: Compete with friends to solve the case first
-- **Case Library**: Pre-generated cases with unique twists and turns
-
----
-
 ## 🤝 Contributing
 
 Contributions, issues, and feature requests are welcome! Feel free to check the [issues page](https://github.com/yourusername/ai-murder-mystery/issues).
@@ -326,7 +264,7 @@ This project is [MIT](https://choosealicense.com/licenses/mit/) licensed.
 ---
 
 <div align="center">
-  <p>Made with ❤️ by AI Enthusiasts</p>
+  <p>Made with ❤️ by Shivansh</p>
   <p>⭐ Star this repository if you enjoyed the game!</p>
 </div>
 ```
