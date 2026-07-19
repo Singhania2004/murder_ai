@@ -23,6 +23,14 @@ Unlike traditional static mystery games, this project leverages AI agents to gen
 
 ---
 
+## 🌐 Live Demo
+
+https://murder-ai.onrender.com/
+
+(backend might take a few minutes to connect if app inactive for a while)
+
+---
+
 ## ✨ Key Features
 
 ### 🎮 Core Gameplay
